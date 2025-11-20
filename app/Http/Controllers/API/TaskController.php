@@ -10,6 +10,7 @@ use App\Models\TaskSave;
 use Illuminate\Http\Request;
 use App\Models\TaskPerformer;
 use App\Models\SocialMediaService;
+use Illuminate\Http\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -812,6 +813,8 @@ class TaskController extends Controller
                 ], 409); // HTTP 409 Conflict
             }
 
+            $taskUpdate = Task::where('id',$validator['task_id'])->increment('performed',1);
+
             // Create the performer record
             $performer = TaskPerformer::create([
                 'user_id'      => $user->id,
@@ -1212,5 +1215,103 @@ class TaskController extends Controller
         }
     }
 
+    /* Rubyaet */
+    public function taskManagement()
+    {
+        try {
+            $activeTask = Task::where('status', 'verifyed')->whereColumn('quantity', '>', 'performed')->get();
+            $completeTask = Task::where('status', 'verifyed')->whereColumn('quantity', '=', 'performed')->get();
+            $rejectedTask = Task::where('status', 'rejected')->get();
+
+            return $this->successResponse([
+                'Active Task' => $activeTask,
+                'Completed Task' => $completeTask,
+                'Rejected Task' => $rejectedTask
+            ], 'All Active Task', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function taskDetails($taskId)
+    {
+        try {
+            $task = Task::where('tasks.id', $taskId)
+                ->join('users', 'users.id', '=', 'tasks.user_id')
+                ->select(
+                    'tasks.*',
+                    'users.id as user_id',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    'users.avatar as user_avatar'
+                )
+                ->first();
+
+            $isCompleted = ($task->quantity == $task->performed);
+            $status = $isCompleted ? 'Complete Task' : 'Active Task';
+
+            $response = [
+                $status => $task,
+            ];
+
+            // Include extra fields if task is completed
+            if ($isCompleted) {
+                $response['Total Performed Task'] = $task->performed;
+                $response['Token Distribution'] = $task->token_distribution ?? 0; // use 0 if null
+            }
+
+            if ($task->status === 'rejected') {
+                $response['Rejected Task'] = $task->rejection_reason;
+            }
+
+
+            return $this->successResponse($response, 'Task details', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function orderManagement()
+    {
+        try {
+            $completedOrder = TaskPerformer::where('status', 'completed')->get();
+
+            $rejectedOrder = TaskPerformer::where('status', 'rejected')->get();
+
+            return $this->successResponse([
+                'Completed Order' => $completedOrder,
+                'Rejected Order' => $rejectedOrder
+            ], 'All Orders', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function orderDetails($orderId)
+    {
+        try {
+            $order = TaskPerformer::where('task_performers.id', $orderId)
+                ->join('users', 'users.id', '=', 'task_performers.verified_by')
+                ->join('task_files', 'task_files.tp_id', '=', 'task_performers.id')
+                ->join('tasks', 'tasks.id', '=', 'task_performers.task_id')
+                ->select('users.*', 'tasks.*', 'task_files.*', 'task_performers.status as task_status', 'task_performers.rejection_reason')
+                ->get();
+
+            $order = $order->map(function ($item) {
+                if ($item->task_status === 'rejected') {
+                    $item->rejected_reason = $item->rejection_reason;
+                }
+                return $item;
+            });
+
+            return $this->successResponse($order, 'All Orders', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
 }

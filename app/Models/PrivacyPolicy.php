@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class BulkEmail extends Model
+class PrivacyPolicy extends Model
 {
     protected $guarded = ['id'];
 }

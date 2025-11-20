@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class BulkEmail extends Model
+class TermCondition extends Model
 {
     protected $guarded = ['id'];
 }

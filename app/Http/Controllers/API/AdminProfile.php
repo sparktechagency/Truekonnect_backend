@@ -1,0 +1,164 @@
+<?php
+
+namespace App\Http\Controllers\API;
+
+use App\Http\Controllers\Controller;
+use App\Models\PrivacyPolicy;
+use App\Models\TermCondition;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+
+class AdminProfile extends Controller
+{
+    public function myProfile(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'name' => 'required',
+                'phone' => 'required',
+            ]);
+
+            $user = Auth::user();
+
+            $user->update($data);
+
+            return $this->successResponse($user, 'Profile updated successfully.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function privacyPolicy(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'policy' => 'required',
+            ]);
+
+            $privacy = PrivacyPolicy::create($data);
+
+            return $this->successResponse($privacy, 'Privacy policy updated successfully.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function privacyRetrive(Request $request){
+        try {
+            $privacy = PrivacyPolicy::all();
+
+            return $this->successResponse($privacy, 'Privacy policy retrieved.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function privacyPolicyUpdate(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'policy' => 'required',
+            ]);
+
+            $privacy = PrivacyPolicy::first();
+
+            if (!$privacy) {
+                $privacy = PrivacyPolicy::create($data);
+            } else {
+                $privacy->update($data);
+            }
+
+            return $this->successResponse($privacy, 'Privacy policy updated successfully.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function termCondition(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'terms_conditions' => 'required',
+            ]);
+
+            $privacy = TermCondition::create($data);
+
+            return $this->successResponse($privacy, 'Terms and Condition updated successfully.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function termsRetrive(Request $request){
+        try {
+            $privacy = TermCondition::all();
+
+            return $this->successResponse($privacy, 'Terms and Condition retrieved.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Soething went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function termConditionUpdate(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'terms_conditions' => 'required',
+            ]);
+
+            $privacy = TermCondition::first();
+
+            if (!$privacy) {
+                $privacy = TermCondition::create($data);
+            } else {
+                $privacy->update($data);
+            }
+
+            return $this->successResponse($privacy, 'Terms and Condition updated successfully.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function adminList()
+    {
+        try {
+            $admin = User::where('role', 'admin')->get();
+
+            return $this->successResponse($admin, 'Admin list.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function addAdmin(Request $request){
+        try {
+            $data = $request->validate([
+                'name' => 'required',
+                'email' => 'required',
+                'password' => 'required|min:8|confirmed',
+            ]);
+
+            $data['password'] = Hash::make($data['password']);
+            $data['role'] = 'admin';
+
+            $user = User::create($data);
+
+            return $this->successResponse($user, 'Admin added successfully.', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+}

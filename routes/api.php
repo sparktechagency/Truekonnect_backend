@@ -1,28 +1,56 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Middleware\UserMiddelware;
+use App\Http\Controllers\API\AdminProfile;
+use App\Http\Controllers\API\AppController;
+use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\ContentControll;
+use App\Http\Controllers\API\CountryController;
+use App\Http\Controllers\API\EmailNotificationController;
+use App\Http\Controllers\API\PaymentController;
+use App\Http\Controllers\API\PerformanceAnalytics;
+use App\Http\Controllers\API\ReviewerController;
+use App\Http\Controllers\API\ReviewerDashboardController;
+use App\Http\Controllers\API\SocialMediaController;
+use App\Http\Controllers\API\SocialMediaServiceController;
+use App\Http\Controllers\API\SupportController;
+use App\Http\Controllers\API\TaskController;
+use App\Http\Controllers\API\UserManagementController;
+use App\Http\Controllers\API\WithdrawalController;
 use App\Http\Middleware\AdminMiddelware;
 use App\Http\Middleware\BrandMiddelware;
-use App\Http\Controllers\API\AppController;
-use App\Http\Middleware\ReviewerMiddelware;
-use App\Http\Controllers\API\AuthController;
-use App\Http\Controllers\API\TaskController;
-use App\Http\Controllers\API\CountryController;
-use App\Http\Controllers\API\PaymentController;
-use App\Http\Controllers\API\SupportController;
-use App\Http\Controllers\API\ReviewerController;
-use App\Http\Controllers\API\WithdrawalController;
-use App\Http\Controllers\API\SocialMediaController;
-use App\Http\Controllers\API\ReviewerDashboardController;
 use App\Http\Middleware\CommonBrandOrPerformerMiddleware;
-use App\Http\Controllers\API\SocialMediaServiceController;
+use App\Http\Middleware\ReviewerMiddelware;
+use App\Http\Middleware\UserMiddelware;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/test-payment', [PaymentController::class, 'testPayment']);
 Route::get('/callback', [PaymentController::class, 'callback']);
 Route::post('/networks', [PaymentController::class, 'getCollectionNetworks']);
 
+
+
+
+
+Route::get('promo/links',[ContentControll::class, 'index']);
+Route::post('promo/links',[ContentControll::class, 'store']);
+Route::delete('promo/links/{id}',[ContentControll::class, 'delete']);
+
+Route::get('performance',[PerformanceAnalytics::class, 'index']);
+
+Route::post('bulk/email',[EmailNotificationController::class, 'bulkEmail']);
+Route::post('bulk/notification',[EmailNotificationController::class, 'bulkNotification']);
+
+Route::post('my/profile',[AdminProfile::class, 'myProfile']);
+Route::post('privacy/policy',[AdminProfile::class, 'privacyPolicy']);
+Route::get('privacy/policy',[AdminProfile::class, 'privacyRetrive']);
+Route::post('privacy/policy/update',[AdminProfile::class, 'privacyPolicyUpdate']);
+
+Route::post('terms/condition',[AdminProfile::class, 'termCondition']);
+Route::get('terms/condition',[AdminProfile::class, 'termsRetrive']);
+Route::post('terms/condition/update',[AdminProfile::class, 'termConditionUpdate']);
+
+Route::get('admin/list',[AdminProfile::class, 'adminList']);
+Route::post('admin/store',[AdminProfile::class, 'addAdmin']);
 
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('signup', 'signUp');
@@ -146,5 +174,20 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
             Route::get('allusersupport','allAdminReviewTickets');
             Route::put('answareusersupport/{id}','adminAnswerTicket');
        });
+    });
+
+    Route::prefix('management')->controller(UserManagementController::class)->group(function(){
+        Route::get('user/list','index');
+        Route::get('performer/details/{userId}','performerDetails');
+        Route::post('change/status/{userId}','changeStatus');
+        Route::post('send/token/{userId}','sendToken');
+    });
+
+    Route::prefix('task/management')->controller(TaskController::class)->group(function(){
+        Route::get('active/task','taskManagement');
+        Route::get('task/details/{taskId}','taskDetails');
+
+        Route::get('all/orders','orderManagement');
+        Route::get('order/details/{orderId}','orderDetails');
     });
 });
