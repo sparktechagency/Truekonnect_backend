@@ -1219,9 +1219,9 @@ class TaskController extends Controller
     public function taskManagement()
     {
         try {
-            $activeTask = Task::where('status', 'verifyed')->whereColumn('quantity', '>', 'performed')->get();
-            $completeTask = Task::where('status', 'verifyed')->whereColumn('quantity', '=', 'performed')->get();
-            $rejectedTask = Task::where('status', 'rejected')->get();
+            $activeTask = Task::with('engagement:id,engagement_name')->where('status', 'verifyed')->whereColumn('quantity', '>', 'performed')->get();
+            $completeTask = Task::with('engagement:id,engagement_name')->where('status', 'verifyed')->whereColumn('quantity', '=', 'performed')->get();
+            $rejectedTask = Task::with('engagement:id,engagement_name')->where('status', 'rejected')->get();
 
             return $this->successResponse([
                 'Active Task' => $activeTask,

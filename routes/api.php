@@ -6,6 +6,7 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ContentControll;
 use App\Http\Controllers\API\CountryController;
 use App\Http\Controllers\API\EmailNotificationController;
+use App\Http\Controllers\API\FinancialController;
 use App\Http\Controllers\API\PaymentController;
 use App\Http\Controllers\API\PerformanceAnalytics;
 use App\Http\Controllers\API\ReviewerController;
@@ -27,30 +28,8 @@ Route::get('/test-payment', [PaymentController::class, 'testPayment']);
 Route::get('/callback', [PaymentController::class, 'callback']);
 Route::post('/networks', [PaymentController::class, 'getCollectionNetworks']);
 
-
-
-
-
-Route::get('promo/links',[ContentControll::class, 'index']);
-Route::post('promo/links',[ContentControll::class, 'store']);
-Route::delete('promo/links/{id}',[ContentControll::class, 'delete']);
-
-Route::get('performance',[PerformanceAnalytics::class, 'index']);
-
-Route::post('bulk/email',[EmailNotificationController::class, 'bulkEmail']);
-Route::post('bulk/notification',[EmailNotificationController::class, 'bulkNotification']);
-
-Route::post('my/profile',[AdminProfile::class, 'myProfile']);
-Route::post('privacy/policy',[AdminProfile::class, 'privacyPolicy']);
 Route::get('privacy/policy',[AdminProfile::class, 'privacyRetrive']);
-Route::post('privacy/policy/update',[AdminProfile::class, 'privacyPolicyUpdate']);
-
-Route::post('terms/condition',[AdminProfile::class, 'termCondition']);
 Route::get('terms/condition',[AdminProfile::class, 'termsRetrive']);
-Route::post('terms/condition/update',[AdminProfile::class, 'termConditionUpdate']);
-
-Route::get('admin/list',[AdminProfile::class, 'adminList']);
-Route::post('admin/store',[AdminProfile::class, 'addAdmin']);
 
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('signup', 'signUp');
@@ -190,4 +169,37 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
         Route::get('all/orders','orderManagement');
         Route::get('order/details/{orderId}','orderDetails');
     });
+
+    Route::prefix('finance')->controller(FinancialController::class)->group(function(){
+        Route::get('allList', 'financialList');
+        Route::post('update/{taskPerformer_id}', 'updateFinancial');
+    });
+
+    Route::prefix('promo')->controller(ContentControll::class)->group(function(){
+        Route::get('links','index');
+        Route::post('links','store');
+        Route::delete('links/{id}','delete');
+    });
+
+    Route::get('performance',[PerformanceAnalytics::class, 'index']);
+
+    Route::prefix('bulk')->controller(EmailNotificationController::class)->group(function(){
+        Route::post('email','bulkEmail');
+        Route::post('notification','bulkNotification');
+    });
+
+    Route::controller(AdminProfile::class)->group(function(){
+        Route::post('my/profile','myProfile');
+        Route::post('privacy/policy','privacyPolicy');
+//        Route::get('privacy/policy',[AdminProfile::class, 'privacyRetrive']);
+        Route::post('privacy/policy/update','privacyPolicyUpdate');
+
+        Route::post('terms/condition','termCondition');
+//        Route::get('terms/condition',[AdminProfile::class, 'termsRetrive']);
+        Route::post('terms/condition/update','termConditionUpdate');
+
+        Route::get('list','adminList');
+        Route::post('store','addAdmin');
+    });
+
 });

@@ -29,6 +29,8 @@ class AdminMiddelware
                 ], 403);
             }
 
+//            dd($user);
+
             // Optionally pass authenticated user to request
           //  $request->merge(['auth_user' => $user]);
 

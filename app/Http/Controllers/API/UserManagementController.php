@@ -16,8 +16,16 @@ class UserManagementController extends Controller
     public function index()
     {
         try {
-            $userActive = User::with('country:id,flag')->where('status','active')->get();
-            $userBanned = User::with('country:id,flag')->where('status','banned')->get();
+            $userActive = User::with('country:id,flag')
+                ->where('role','brand')
+                ->orWhere('role','performer')
+                ->where('status','active')
+                ->get();
+            $userBanned = User::with('country:id,flag')
+                ->where('role','brand')
+                ->orWhere('role','performer')
+                ->where('status','banned')
+                ->get();
 
             return $this->successResponse(['active users'=>$userActive,'user banned'=>$userBanned],'All users retrieved successfully',Response::HTTP_OK);
         } catch (\Exception $e){
