@@ -12,28 +12,56 @@ class FinancialController extends Controller
 {
     public function financialList()
     {
-        $finance = TaskPerformer::with([
-            'performer:id,name,email,phone',
-            'task:id,country_id,sms_id,total_price',
-            'task.engagement:id,engagement_name',
-            'task.country:id,name,flag'
-        ])->get();
+        try {
+            $finance = TaskPerformer::with([
+                'performer:id,name,email,phone',
+                'task:id,country_id,sms_id,total_price',
+                'task.engagement:id,engagement_name',
+                'task.country:id,name,flag'
+            ])->where('status', 'pending')->get();
 
-        return $finance;
+            $completed = TaskPerformer::with([
+                'performer:id,name,email,phone',
+                'task:id,country_id,sms_id,total_price',
+                'task.engagement:id,engagement_name',
+                'task.country:id,name,flag'
+            ])->where('status', 'completed')->get();
+
+            $blocked = TaskPerformer::with([
+                'performer:id,name,email,phone',
+                'task:id,country_id,sms_id,total_price',
+                'task.engagement:id,engagement_name',
+                'task.country:id,name,flag'
+            ])->where('status', 'blocked')->get();
+
+            return $this->successResponse([
+                'Pending Approval' => $finance,
+                'Completed' => $completed,
+                'Blocked' => $blocked
+            ], 'Status updated successfully', Response::HTTP_OK);
+        }
+        catch (\Exception $e){
+            return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function updateFinancial(Request $request, $taskPerformer_id)
     {
-        $tp = TaskPerformer::where('id', $taskPerformer_id)->first();
+        try {
+            $tp = TaskPerformer::where('id', $taskPerformer_id)->first();
 
-        $data = $request->validate([
-            'status' => 'required|in:completed,blocked',
-        ]);
+            $data = $request->validate([
+                'status' => 'required|in:completed,blocked',
+            ]);
 
-        $data['verified_by'] = Auth::id();
+            $data['verified_by'] = Auth::id();
 
-        $tp->update($data);
+            $tp->update($data);
 
-        return $this->successResponse($tp,'Status updated successfully', Response::HTTP_OK);
+            return $this->successResponse($tp, 'Status updated successfully', Response::HTTP_OK);
+        }
+        catch (\Exception $e){
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }

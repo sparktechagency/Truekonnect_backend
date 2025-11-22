@@ -21,33 +21,31 @@ class KorbaXchangeService
     {
         ksort($payload);
         $message = urldecode(http_build_query($payload, '', '&'));
-//        $message = http_build_query($payload, '', '&');
-//        dd($message);
         $signature = hash_hmac('sha256', $message, $this->secretKey);
-//        dd($signature);
         $headers = [
             'Authorization' => 'HMAC ' . $this->clientKey . ':' . $signature,
             'Content-Type'  => 'application/json',
         ];
 
-//        dd($this->clientKey);
-//        dd($payload['client_id']);
-//        dd($headers,$this->secretKey,$endpoint,$payload);
+
         $response = Http::withoutVerifying()->withHeaders($headers)
             ->post($this->baseUrl . $endpoint . '/', $payload);
 
-//        dd($response->json());
         return $response->json();
     }
     public function collect(array $data)
     {
-//        dd($data);
         return $this->makeRequest('collect', $data);
     }
 
     public function disburse(array $data)
     {
         return $this->makeRequest('disburse', $data);
+    }
+
+    public function directCard(array $data)
+    {
+        return $this->makeRequest('direct_card_collection', $data);
     }
 
 

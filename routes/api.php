@@ -24,9 +24,12 @@ use App\Http\Middleware\ReviewerMiddelware;
 use App\Http\Middleware\UserMiddelware;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/test-payment', [PaymentController::class, 'testPayment']);
-Route::get('/callback', [PaymentController::class, 'callback']);
-Route::post('/networks', [PaymentController::class, 'getCollectionNetworks']);
+//Route::post('/test-payment', [PaymentController::class, 'testPayment']);
+////Route::get('/callback', [PaymentController::class, 'callback']);
+//Route::post('/networks', [PaymentController::class, 'getCollectionNetworks']);
+////Route::get('/callback', [PaymentController::class, 'callbackURL'])->name('korba.callback');
+//
+//Route::post('card/payment', [PaymentController::class, 'cardCollection']);
 
 Route::get('privacy/policy',[AdminProfile::class, 'privacyRetrive']);
 Route::get('terms/condition',[AdminProfile::class, 'termsRetrive']);
@@ -54,7 +57,6 @@ Route::prefix('app')->group(function () {
             Route::get('dashboardhistory','dashboardHistory');
             Route::put('tokenconvert','tokenConvert');
         });
-
     });
     Route::middleware(BrandMiddelware::class)->group(function () {
         Route::controller(AppController::class)->group(function () {});
@@ -75,10 +77,15 @@ Route::prefix('app')->group(function () {
         Route::controller(SupportController::class)->group(function(){
             Route::post('openticket','newticket');
         });
-        Route::post('/test-payment', [PaymentController::class, 'GetPaymentFromBrand']);
-        Route::post('/performer-payment', [PaymentController::class, 'PayoutToPerformer']);
-        Route::get('/callback', [PaymentController::class, 'callback'])->name('korba.callback');
-        Route::post('/networks', [PaymentController::class, 'getCollectionNetworks']);
+
+        Route::controller(PaymentController::class)->group(function() {
+            Route::post('/brand-payment', 'GetPaymentFromBrand');
+            Route::post('/performer-payment', 'PayoutToPerformer');
+            Route::get('/callback', 'callbackURL')->name('korba.callback');
+            Route::get('/networks', 'getCollectionNetworks');
+            Route::get('/available/banks', 'bankLookup');
+            Route::post('/customer/bank/account', 'customerLookup');
+        });
     });
 
 });
@@ -201,5 +208,4 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
         Route::get('list','adminList');
         Route::post('store','addAdmin');
     });
-
 });
