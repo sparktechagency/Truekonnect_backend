@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Notifications\UserNotification;
+use Illuminate\Http\Response;
 use Throwable;
 use App\Models\Task;
 use App\Models\User;
@@ -19,45 +21,22 @@ class WithdrawalController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'User not found.',
-                ], 404);
+                return $this->errorResponse('User not found.',Response::HTTP_NOT_FOUND);
             }
             $taskCount = Task::where('user_id', $user->id)->count();
             $info = User::where('id', $user->id)
                 ->with('country:id,name,token_rate,currency_code')
                 ->first(['id','country_id','balance','earn_token','convert_token','withdrawal_status']);
             if (!$info) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'User wallet data not found.',
-                ], 409);
+                return $this->errorResponse('User wallet data not found.',Response::HTTP_CONFLICT);
             }
-            return response()->json([
-                'status' => true,
-                'message' => 'User wallet successfully fetched.',
-                'data'=> $info,
-                'total_task' => $taskCount
-            ], 200);
+            return $this->successResponse([$info, 'total_task'=>$taskCount],'User wallet successfully fetched.', Response::HTTP_OK);
         } catch (TokenExpiredException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Token has expired. Please log in again.',
-            ], 401);
-
+            return $this->errorResponse('Token has expired. Please log in again.'.$e->getMessage(),Response::HTTP_FORBIDDEN);
         } catch (JWTException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Invalid or missing token.',
-            ], 401);
-
+            return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (Throwable $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Something went wrong while fetching wallet info.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong while fetching wallet info.'. $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function dashboardHistory(){
@@ -65,10 +44,7 @@ class WithdrawalController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'User not found.',
-                ], 404);
+                return $this->errorResponse('User not found.',Response::HTTP_NOT_FOUND);
             }
             $withdrawals = Withdrawal::where('user_id', $user->id)->where('status', 'success')->get(['id','user_id','amount','status']);
             $totalWithdrawal = $withdrawals->sum('amount');
@@ -76,40 +52,21 @@ class WithdrawalController extends Controller
                 ->with('country:id,name,token_rate,currency_code')
                 ->first(['id','name','country_id','balance','earn_token','convert_token','withdrawal_status']);
             if (!$info) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'User wallet data not found.',
-                ], 409);
+                return $this->errorResponse('User wallet data not found.',Response::HTTP_CONFLICT);
             }
-            return response()->json([
-                'status' => true,
-                'message' => 'User wallet successfully fetched.',
-                'data'=> [
-                    'name'=>$info->name,
-                    'total_earn_token'=> $info->earn_token+$info->convert_token,
-                    'total_withdraw'=>$totalWithdrawal,
-                    'available_balance'=>$info->balance,
-                    'withdrawal_history'=>$withdrawals
-                ],
-            ], 200);
+            return $this->successResponse([
+                'name'=>$info->name,
+                'total_earn_token'=> $info->earn_token+$info->convert_token,
+                'total_withdraw'=>$totalWithdrawal,
+                'available_balance'=>$info->balance,
+                'withdrawal_history'=>$withdrawals
+            ], 'User wallet successfully fetched.', Response::HTTP_OK);
         } catch (TokenExpiredException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Token has expired. Please log in again.',
-            ], 401);
-
+            return $this->errorResponse('Token has expired. Please log in again.'.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (JWTException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Invalid or missing token.',
-            ], 401);
-
+            return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (Throwable $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Something went wrong while fetching wallet info.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong while fetching wallet info.'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function tokenConvert(Request $request)
@@ -120,60 +77,40 @@ class WithdrawalController extends Controller
             ]);
             $user = JWTAuth::parseToken()->authenticate();
             if (!$user) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'User not found.',
-                ], 404);
+                return $this->errorResponse('User not found.',Response::HTTP_NOT_FOUND);
             }
             $info = User::where('id', $user->id)
                 ->with('country:id,name,token_rate,currency_code')
                 ->first(['id','country_id','balance','earn_token','convert_token','withdrawal_status']);
             if (!$info) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'User wallet data not found.',
-                ], 409);
+                return $this->errorResponse('User wallet data not found.',Response::HTTP_CONFLICT);
             }
             if ($info->earn_token < $request->token) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'Insufficient earn tokens to convert.',
-                ], 422);
+                return $this->errorResponse('Insufficient earn token to convert.',Response::HTTP_UNPROCESSABLE_ENTITY);
             }
             $info->earn_token -= $request->token;
             $info->convert_token += $request->token;
             $info->balance += $request->token * $info->country->token_rate;
             $info->save();
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Tokens converted successfully.',
-                'data' => [
-                    'balance' => $info->balance,
-                    'earn_token' => $info->earn_token,
-                    'convert_token' => $info->convert_token,
-                    'currency_code' => $info->country->currency_code,
-                ]
-            ], 200);
+            $title = 'Token has been converted!';
+            $body = 'Your new balance is '. $info->balance;
+
+            $info->notify(new UserNotification($title, $body));
+
+            return $this->successResponse([
+                'balance' => $info->balance,
+                'earn_token' => $info->earn_token,
+                'convert_token' => $info->convert_token,
+                'currency_code' => $info->country->currency_code,
+                ], 'Tokens converted successfully.',Response::HTTP_OK);
 
         } catch (TokenExpiredException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Token has expired. Please log in again.',
-            ], 401);
-
+            return $this->errorResponse('Token has expired. Please log in again.'.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (JWTException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Invalid or missing token.',
-            ], 401);
-
+            return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (Throwable $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Something went wrong while converting tokens.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong while fetching wallet info.'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

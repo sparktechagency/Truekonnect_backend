@@ -22,6 +22,7 @@ use App\Http\Middleware\BrandMiddelware;
 use App\Http\Middleware\CommonBrandOrPerformerMiddleware;
 use App\Http\Middleware\ReviewerMiddelware;
 use App\Http\Middleware\UserMiddelware;
+use App\Http\Controllers\API\NotificationCenter;
 use Illuminate\Support\Facades\Route;
 
 //Route::post('/test-payment', [PaymentController::class, 'testPayment']);
@@ -34,6 +35,17 @@ use Illuminate\Support\Facades\Route;
 Route::get('privacy/policy',[AdminProfile::class, 'privacyRetrive']);
 Route::get('terms/condition',[AdminProfile::class, 'termsRetrive']);
 
+Route::prefix('notification')->controller(NotificationCenter::class)->group(function () {
+    Route::get('center','getNotification');
+
+    Route::post('markAsRead/{id}','markAsRead');
+
+    Route::post('markAllAsRead','markAllAsRead');
+
+    Route::delete('delete/{id}','deleteNotification');
+
+    Route::delete('deleteAllNotification','deleteAllNotifications');
+});
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('signup', 'signUp');
     Route::post('signin', 'signIn');
@@ -101,7 +113,6 @@ Route::prefix('reviewer')->middleware(ReviewerMiddelware::class)->group(function
             Route::put('approved/{id}','approveTask');
             Route::put('rejected/{id}','rejectTask');
             Route::put('adminreview/{id}','adminReview');
-
     });
     Route::prefix('performed-task')->controller(TaskController::class)->group(function () {
             Route::get('allpallperformedtask','allPerformTask');

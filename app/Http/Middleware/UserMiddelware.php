@@ -9,9 +9,11 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+use App\Traits\ApiResponse;
 
 class UserMiddelware
 {
+    use ApiResponse;
     /**
      * Handle an incoming request.
      *
@@ -21,28 +23,16 @@ class UserMiddelware
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            // User found & role check
+
             if (!$user || $user->role !== 'performer') {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Unauthorized. Performer access required.',
-                ], 403);
+                return $this->errorResponse('Unauthorized. Performer access required.',Response::HTTP_FORBIDDEN);
             }
         } catch (TokenExpiredException $e) {
-            return response()->json([
-                'status'  => false,
-                'error'   => 'Token has expired.',
-            ], 401);
+            return $this->errorResponse('Token has expired'.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (TokenInvalidException $e) {
-            return response()->json([
-                'status'  => false,
-                'error'   => 'Token is invalid.',
-            ], 401);
+            return $this->errorResponse('Token is invalid.'.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (JWTException $e) {
-            return response()->json([
-                'status'  => false,
-                'error'   => 'Authorization token not found.',
-            ], 401);
+            return $this->errorResponse('Authorization token not found'.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         }
         return $next($request);
     }

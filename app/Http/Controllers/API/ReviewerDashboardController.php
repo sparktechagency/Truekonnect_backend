@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Models\User;
+use App\Notifications\UserNotification;
 use Illuminate\Http\Request;
 use App\Models\SocialAccount;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -49,12 +50,17 @@ class ReviewerDashboardController extends Controller
             $sa->verified_at = Now();
             $sa->save();
 
+
             // Update related user
             $user = User::findOrFail($sa->user_id);
             $user->withdrawal_status = $request->withdrawal;
             $user->verification_by = $verifyBy->id;
             $user->save();
 
+            $title = $sa->social->name . ' is verified';
+            $body = 'Hi ' . $sa->User->name . ', your account is verified. You can withdrawal now';
+
+            $user->notify(new UserNotification($title, $body));
             return response()->json([
                 'status' => true,
                 'message' => 'Social account verified successfully.',
@@ -122,6 +128,11 @@ class ReviewerDashboardController extends Controller
             $user->verification_by = Null;
             $user->withdrawal_status = $request->withdrawal; // assuming rejected accounts can’t withdraw
             $user->save();
+
+            $title = $sa->social->name . ' is rejected';
+            $body = 'Hi ' . $sa->User->name . ', your account is rejected. Reason: '. $sa->rejection_reason;
+
+            $user->notify(new UserNotification($title, $body));
 
             return response()->json([
                 'status' => true,

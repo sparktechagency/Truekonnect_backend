@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Models\User;
 use App\Models\SocialMedia;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\SocialAccount;
@@ -106,7 +107,7 @@ class AuthController extends Controller
             'status'  => true,
             'message' => 'Login successful',
             'token'   => $token,
-            'user'    => $user, 
+            'user'    => $user,
             // [
             //     'id'           => $user->id,
             //     'name'         => $user->name,
@@ -152,7 +153,7 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             // Log the error for debugging
-            \Log::error('Forgot Password Email Error: '.$e->getMessage());
+            Log::error('Forgot Password Email Error: '.$e->getMessage());
 
             return response()->json([
                 'status'  => false,
@@ -301,25 +302,25 @@ class AuthController extends Controller
                 'message' => 'Token refreshed successfully.',
                 'token' => $newToken
             ]);
-        } 
+        }
         catch (TokenBlacklistedException $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'This token has already been used or blacklisted. Please log in again.'
             ], 401);
-        } 
+        }
         catch (TokenExpiredException $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Token expired. Please log in again.'
             ], 401);
-        } 
+        }
         catch (TokenInvalidException $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Invalid token.'
             ], 401);
-        } 
+        }
         catch (JWTException $e) {
             return response()->json([
                 'status' => false,

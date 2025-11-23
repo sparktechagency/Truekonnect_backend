@@ -9,9 +9,12 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+use App\Traits\ApiResponse;
 
 class AdminMiddelware
 {
+
+    use ApiResponse;
     /**
      * Handle an incoming request.
      *
@@ -23,32 +26,15 @@ class AdminMiddelware
             $user = JWTAuth::parseToken()->authenticate();
             // User found & role check
             if (!$user || $user->role !== 'admin') {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Unauthorized. Admin access required.',
-                ], 403);
+                return $this->errorResponse('Unauthorized. Admin access required.', Response::HTTP_BAD_REQUEST);
             }
 
-//            dd($user);
-
-            // Optionally pass authenticated user to request
-          //  $request->merge(['auth_user' => $user]);
-
         } catch (TokenExpiredException $e) {
-            return response()->json([
-                'status'  => false,
-                'error'   => 'Token has expired.',
-            ], 401);
+            return $this->errorResponse('Token has expired. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (TokenInvalidException $e) {
-            return response()->json([
-                'status'  => false,
-                'error'   => 'Token is invalid.',
-            ], 401);
+            return $this->errorResponse('Token is invalid. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (JWTException $e) {
-            return response()->json([
-                'status'  => false,
-                'error'   => 'Authorization token not found.',
-            ], 401);
+            return $this->errorResponse('Authorization token not found. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         }
         return $next($request);
     }

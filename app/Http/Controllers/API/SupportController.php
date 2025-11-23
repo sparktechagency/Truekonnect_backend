@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Notifications\UserNotification;
 use Exception;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -49,6 +50,16 @@ class SupportController extends Controller
                 'status' => 'pending',
             ]);
 
+            $allUser = User::where('id', '!=', $user->id)
+                ->whereIn('role', ['admin','reviewer'])
+                ->get();
+
+            $title = 'New Ticket Raised';
+            $body  = "A new support ticket has been raised by {$user->name}.\nTicket Id: {$ticket->id}\nSubject: {$ticket->subject}\nIssue: {$ticket->issue}";
+
+           foreach ($allUser as $notifyUser) {
+               $notifyUser->notify(new UserNotification($title, $body));
+           }
             return response()->json([
                 'success' => true,
                 'message' => 'Support ticket created successfully.',
@@ -164,8 +175,14 @@ class SupportController extends Controller
                 $ticket->reviewed_by  = $user->id; // optional
                 $ticket->status = 'answered';
                 $ticket->save();
+
                 $email=$customer->email;
                 Mail::to($email)->send(new SupportTicketMail($customer, $reply,$ticket));
+
+                $title = 'Your Support Ticket Has Been Answered';
+                $body  = "Hello {$customer->name}, your support ticket '{$ticket->subject}' has been answered. Reply: {$reply}";
+
+                $customer->notify(new UserNotification($title, $body));
                 return response()->json([
                     'success' => true,
                     'message' => 'Ticket answered successfully.',
@@ -234,13 +251,18 @@ class SupportController extends Controller
                 $ticket->admin_reason = $validated['reason']; // make sure this column exists
                 $ticket->save();
 
+                $title = 'Ticket Moved to Admin';
+                $body = 'Your support ticket has been moved to admin review. Reason: '. $ticket->admin_reason;
+
+                $ticket->ticketcreator->notify(new UserNotification($title, $body));
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Ticket moved to admin successfully.',
                     'data' => $ticket,
                 ], 200);
             }
-            
+
 
         } catch (JWTException $e) {
             return response()->json([
@@ -346,8 +368,15 @@ class SupportController extends Controller
                 $ticket->reviewed_by  = $user->id; // optional
                 $ticket->status = 'answered';
                 $ticket->save();
+
                 $email=$customer->email;
                 Mail::to($email)->send(new SupportTicketMail($customer, $reply,$ticket));
+
+                $title = 'Ticket Answered';
+                $body = 'Your support ticket has been answered. Reply: '. $reply;
+
+                $customer->notify(new UserNotification($title, $body));
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Ticket answered successfully.',

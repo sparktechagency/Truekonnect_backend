@@ -115,7 +115,7 @@ class ReviewerController extends Controller
                 'status'  => false,
                 'message' => 'Reviewer not found.',
             ], 404);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Failed to update reviewer status.',

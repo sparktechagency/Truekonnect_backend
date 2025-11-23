@@ -25,7 +25,6 @@ class PerformanceAnalytics extends Controller
         $fromDate = $data['from_date'] ?? null;
         $toDate = $data['to_date'] ?? null;
 
-// Helper function to apply date range
         $applyDateRange = function ($query, $from, $to, $table = null) {
             $column = $table ? "$table.created_at" : 'created_at';
 

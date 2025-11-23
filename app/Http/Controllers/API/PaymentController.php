@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Notifications\UserNotification;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Services\KorbaXchangeService;
@@ -41,7 +42,7 @@ class PaymentController extends Controller
             ];
 
             $response = $korba->collect($payload);
-
+            $user = Auth::user();
             Payment::create([
                 'user_id'         => Auth::id(),
                 'task_id'         => $request->task_id,
@@ -60,6 +61,11 @@ class PaymentController extends Controller
 //                    'trnxId'=> $transactionId
 //                ],
 //            ]);
+
+            $title = 'Payment Initiated.';
+            $body = 'We sent a prompt to your phone number ' .$request->customer_number. '. Please accept it. Your transaction id: ' . $transactionId;
+
+            $user->notify(new UserNotification($title, $body));
 
             return $this->successResponse([
                 $response,
@@ -143,6 +149,10 @@ class PaymentController extends Controller
 
             Auth::user()->decrement('balance', $request->amount);
 
+            $title = 'Payment Initiated.';
+            $body = 'Your payment request is in review. You will notify after sometime. Your transaction id: ' . $transactionId;
+
+            Auth::user()->notify(new UserNotification($title, $body));
 //            return response()->json([
 //                'status'  => true,
 //                'message' => 'Withdrawal request sent successfully.',
