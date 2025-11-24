@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\Countrie;
 use App\Models\User;
 use App\Models\SocialMedia;
+use App\Services\KorbaXchangeService;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -24,7 +27,7 @@ use Tymon\JWTAuth\Exceptions\TokenBlacklistedException;
 
 class AuthController extends Controller
 {
-    public function signUp(Request $request){
+    public function signUp(Request $request, KorbaXchangeService $korba){
         $validator = Validator::make($request->all(), [
             'name'            => 'required|string|max:255',
             'email'           => 'required|string|email|max:255|unique:users,email',
@@ -47,16 +50,39 @@ class AuthController extends Controller
             $referralCode = strtoupper(substr($request->name, 0, 3)) . random_int(100000, 999999);
         } while (User::where('referral_code', $referralCode)->exists());
 
+        $otp = rand(100000, 999999);
+        $otpExpiry = Carbon::now()->addMinutes(10);
+
+        if (in_array($request->role,['performer','brand'])) {
+            $country = Countrie::where('id',$request->country_id);
+            $payload = [
+                'client_id' => env('KORBA_CLIENT_ID'),
+                'phone_number' => $country->dial_code.$request->phone,
+                'code' => $otp,
+                'platform'=> env('APP_NAME'). '. OTP Expire at '.$otpExpiry,
+            ];
+//        $otpSend = $korba->ussdOTP($payload);
+        }else{
+            Mail::raw("Your OTP is: $otp. It will expire at " . $otpExpiry->format('H:i:s'), function ($message) use ($request) {
+                $message->to($request->email)
+                    ->subject('Your OTP Code');
+            });
+        }
+
+
         $user = User::create([
-            'name'       => $request->name,
-            'email'      => $request->email,
-            'phone'      => $request->phone,
-            'country_id' => $request->country_id,
-            'role'       => $request->role,
-            'referral_code' => $referralCode,
-            'password'   => Hash::make($request->password),
-            'avatar'   => 'avatars/default_avatar.png',
+            'name'              => $request->name,
+            'email'             => $request->email,
+            'phone'             => $request->phone,
+            'country_id'        => $request->country_id,
+            'role'              => $request->role,
+            'otp'               => $otp,
+            'otp_expires_at'    => $otpExpiry,
+            'referral_code'     => $referralCode,
+            'password'          => Hash::make($request->password),
+            'avatar'            => 'avatars/default_avatar.png',
         ]);
+
         $socialMedia=SocialMedia::get();
         foreach($socialMedia as $item){
             SocialAccount::create([
@@ -73,33 +99,73 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'status'  => true,
-            'message' => 'User successfully registered',
-            'data'    => $user,
+            'status'        => true,
+            'message'       => 'User successfully registered',
+            'data'          => $user,
+//            'otp sent code' => $otpSend,
         ], 201);
     }
+
     public function signIn(Request $request){
         $validator = Validator::make($request->all(), [
-            'email'    => 'required|string|email|max:255|exists:users,email',
+            'login'    => 'required|string|max:255', // email or phone based on role
             'password' => 'required|string|min:8',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status'  => false,
+                'status'     => false,
                 'error_type' => 'Validation errors',
-                'errors'  => $validator->errors(),
+                'errors'     => $validator->errors(),
             ], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $login = $request->login;
+        $password = $request->password;
+
+        // Determine if user exists and get role first
+        $userQuery = User::where('email', $login)
+            ->orWhere('phone', $login)
+            ->first();
+
+        if (!$userQuery) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        // Determine which field to use based on role
+        if (in_array($userQuery->role, ['performer', 'brand'])) {
+            if (!$userQuery->phone_verified_at) { // or your OTP verified column
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Phone number not verified',
+                ], 403);
+            }
+            $loginField = 'phone';
+        } else { // admin or reviewer
+            if (!$userQuery->email_verified_at) { // or your OTP verified column
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Email not verified',
+                ], 403);
+            }
+            $loginField = 'email';
+        }
+
+        $credentials = [
+            $loginField => $login,
+            'password'  => $password,
+        ];
 
         if (!$token = JWTAuth::attempt($credentials)) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Invalid your password',
+                'message' => 'Invalid credentials',
             ], 401);
         }
+
 
         $user = JWTAuth::user();
 
@@ -118,9 +184,94 @@ class AuthController extends Controller
             // ],
         ], 200);
     }
-    public function forgotPassword(Request $request){
+
+    public function forgotPassword(Request $request, KorbaXchangeService $korba)
+    {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email|max:255|exists:users,email',
+            'login' => 'required|string|max:255', // email or phone based on role
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'     => false,
+                'error_type' => 'Validation errors',
+                'errors'     => $validator->errors(),
+            ], 422);
+        }
+
+        $login = $request->login;
+
+        // Find user by email or phone
+        $user = User::where('email', $login)
+            ->orWhere('phone', $login)
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        // Generate OTP
+        $otp = random_int(100000, 999999);
+        $otpExpiry = now()->addMinutes(10);
+
+        // Save OTP and expiry in DB
+        $user->otp = $otp;
+        $user->otp_expires_at = $otpExpiry;
+        $user->save();
+
+        try {
+            // Role-based OTP delivery
+            if (in_array($user->role, ['performer', 'brand'])) {
+                // Send via USSD (Korba service)
+                $country = Countrie::find($user->country_id);
+                if (!$country) {
+                    return response()->json([
+                        'status'  => false,
+                        'message' => 'User country not found',
+                    ], 404);
+                }
+
+                $payload = [
+                    'client_id'    => env('KORBA_CLIENT_ID'),
+                    'phone_number' => $country->dial_code . $user->phone,
+                    'code'         => $otp,
+                    'platform'     => env('APP_NAME') . ' OTP Expire at ' . $otpExpiry,
+                ];
+
+//                $korba->ussdOTP($payload);
+
+            } else {
+                // Admin/Reviewer: send via email
+                Mail::raw("Your OTP is: $otp. It will expire at " . $otpExpiry->format('H:i:s'), function ($message) use ($user) {
+                    $message->to($user->email)
+                        ->subject('Your OTP Code');
+                });
+            }
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'OTP sent successfully',
+                'login'   => $login,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Forgot Password OTP Error: ' . $e->getMessage());
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to send OTP. Please try again later.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function otpPhoneVerify(Request $request){
+        $validator = Validator::make($request->all(), [
+            'phone' => 'required|string|max:255|exists:users,phone',
+            'otp'   => 'required|string|min:6',
         ]);
 
         if ($validator->fails()) {
@@ -131,37 +282,68 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user = User::where('email', $request->email)->first();
+//        dd(User::where('phone', $request->phone)->first());
 
-        // Generate OTP (use random_int for more secure OTP)
-        $otp = random_int(100000, 999999);
+        $user = User::where('phone', $request->phone)
+            ->where('otp', $request->otp)
+            ->where('otp_expires_at', '>=', now()) // be consistent with your column name
+            ->first();
 
-        // Save OTP and expiry
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'OTP is incorrect or has expired.',
+            ], 400);
+        }
+        $user->phone_verified_at = Carbon::now();
+        $user->otp = null;
+        $user->otp_expires_at = null;
+        $user->save();
+        return response()->json([
+            'status'  => true,
+            'message' => 'Phone Number verified successfully.',
+            'data'    => [
+                'phone' => $request->phone,
+                'user_id' => $user->id,
+            ],
+        ], 200);
+    }
+
+    public function resendPhoneOTP(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'phone' => 'required|string|max:255|exists:users,phone',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse('Something went wrong. ' .$validator->errors(), 400);
+        }
+        $otp = rand(100000, 999999);
+        $otpExpiry = Carbon::now()->addMinutes(10);
+//        dd($otp, $otpExpiry);
+
+        $payload = [
+            'client_id' => env('KORBA_CLIENT_ID'),
+            'phone_number' => '+233'.$request->phone,
+            'code' => $otp,
+            'platform'=> env('APP_NAME'). 'OTP Expire at '.$otpExpiry,
+        ];
+
+        $user = User::where('phone',$request->phone)->first();
+
+        if (!$user) {
+            return $this->errorResponse('Phone number not found', Response::HTTP_NOT_FOUND);
+        }
+
         $user->otp = $otp;
         $user->otp_expires_at = Carbon::now()->addMinutes(10);
         $user->save();
 
-        try {
-            // Send OTP email
-            Mail::to($user->email)->send(new ForgotPasswordOtpMail($user, $otp));
+//        $otpSend = $korba->ussdOTP($payload);
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'OTP sent to your email',
-                'email'   => $user->email,
-            ], 200);
-
-        } catch (\Exception $e) {
-            // Log the error for debugging
-            Log::error('Forgot Password Email Error: '.$e->getMessage());
-
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to send OTP email. Please try again later.',
-                'error'=> $e->getMessage(),
-            ], 500);
-        }
+        return $this->successResponse($user,'OTP sent to your phone', Response::HTTP_OK);
     }
+
     public function otpVerify(Request $request){
         $validator = Validator::make($request->all(), [
             'email' => 'required|string|email|max:255|exists:users,email',
@@ -186,6 +368,7 @@ class AuthController extends Controller
                 'message' => 'OTP is incorrect or has expired.',
             ], 400);
         }
+            $user->email_verified_at = Carbon::now();
             $user->otp = null;
             $user->otp_expires_at = null;
             $user->save();
@@ -199,6 +382,7 @@ class AuthController extends Controller
             ], 200);
 
     }
+
     public function setNewPassword(Request $request){
         $validator = Validator::make($request->all(), [
             'user_id'    => 'required|exists:users,id',
@@ -234,6 +418,7 @@ class AuthController extends Controller
             'user'    => $user,
         ], 200);
     }
+
     public function changePassword(Request $request){
         try {
             $request->validate([
@@ -283,6 +468,7 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
     public function refreshToken(Request $request){
         try {
             $token = JWTAuth::getToken();
@@ -328,6 +514,7 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
     public function signOut(Request $request){
         try {
             JWTAuth::invalidate(JWTAuth::parseToken());
@@ -343,4 +530,5 @@ class AuthController extends Controller
             ], 401);
         }
     }
+
 }

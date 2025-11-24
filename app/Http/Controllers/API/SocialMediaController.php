@@ -86,7 +86,7 @@ class SocialMediaController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'name' => 'sometimes|string|unique:social_media,name,' . $id,
-                'icon' => 'sometimes|max:2048',
+                'icon_url' => 'sometimes|max:2048',
             ]);
 
             if ($validator->fails()) {
@@ -98,16 +98,16 @@ class SocialMediaController extends Controller
             }
 
             // If updating icon, delete old one first
-            if ($request->hasFile('icon')) {
-                if ($platform->icon && Storage::disk('public')->exists($platform->icon)) {
-                    Storage::disk('public')->delete($platform->icon);
+            if ($request->hasFile('icon_url')) {
+                if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
+                    Storage::disk('public')->delete($platform->icon_url);
                 }
 
-                $file = $request->file('icon');
+                $file = $request->file('icon_url');
                 $extension = $file->getClientOriginalExtension();
                 $fileName = Str::slug($request->name ?? $platform->name) . '.' . $extension;
                 $iconPath = $file->storeAs('social_icons', $fileName, 'public');
-                $platform->icon = $iconPath;
+                $platform->icon_url = $iconPath;
             }
 
             if ($request->has('name')) {
@@ -142,8 +142,8 @@ class SocialMediaController extends Controller
             }
 
             // Delete icon file
-            if ($platform->icon && Storage::disk('public')->exists($platform->icon)) {
-                Storage::disk('public')->delete($platform->icon);
+            if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
+                Storage::disk('public')->delete($platform->icon_url);
             }
 
             $platform->delete();

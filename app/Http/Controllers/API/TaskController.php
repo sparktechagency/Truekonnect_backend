@@ -735,7 +735,7 @@ class TaskController extends Controller
                 ], 409); // HTTP 409 Conflict
             }
 
-            $taskUpdate = Task::where('id',$validator['task_id'])->increment('performed',1);
+            $taskUpdate = Task::where('id',$request->task_id)->increment('performed',1);
 
             // Create the performer record
             $performer = TaskPerformer::create([

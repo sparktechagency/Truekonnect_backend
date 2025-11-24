@@ -2,9 +2,15 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\Task;
+use App\Models\TaskPerformer;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Mail\AccountbannedMail;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
@@ -129,11 +135,30 @@ class ReviewerController extends Controller
             // Find the reviewer by ID and role
             $reviewer = User::where('role', 'reviewer')->findOrFail($id);
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'Reviewer retrieved successfully.',
-                'data'    => $reviewer,
-            ], 200);
+            $totalVerified = User::where('verification_by', $id)->count();
+            $totalVerifiedTask = Task::where('verified_by', $id)->count();
+            $totalVerifiedOrder = TaskPerformer::where('verified_by', $id)->count();
+
+            $totalPendingAccounts = User::whereIn('role',['performer','brand'])->count();
+            $totalPendingOrders = TaskPerformer::where('status','pending')->count();
+            $totalPendingTask = Task::where('status','pending')->count();
+
+            $totalPending = $totalPendingAccounts + $totalPendingOrders + $totalPendingTask;
+            $totalVerifiedAll = $totalVerified + $totalVerifiedTask + $totalVerifiedOrder;
+            $overallPerformance = ($totalPending + $totalVerifiedAll) > 0
+                ? round(($totalVerifiedAll / ($totalPending + $totalVerifiedAll)) * 100)
+                : 0;
+
+            return $this->successResponse([
+                'reviewer' => $reviewer,
+                'totalVerified' => $totalVerified,
+                'totalVerifiedTask' => $totalVerifiedTask,
+                'totalVerifiedOrder' => $totalVerifiedOrder,
+                'totalPendingAccounts' => $totalPendingAccounts,
+                'totalPendingOrders' => $totalPendingOrders,
+                'totalPendingTask' => $totalPendingTask,
+                'overallPerformance' => $overallPerformance,
+            ],'Reviewer successfully viewed!',Response::HTTP_OK);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
@@ -146,6 +171,67 @@ class ReviewerController extends Controller
                 'message' => 'Failed to retrieve reviewer.',
                 'error'   => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    public function myProfile()
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+
+            if (!$user) {
+                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+            }
+
+            $userDetails = User::select('id', 'name', 'email', 'avatar')
+                ->where('id', Auth::id())
+                ->first();
+
+            $totalVerified = User::where('verification_by', Auth::id())->count();
+            $totalVerifiedTask = Task::where('verified_by', Auth::id())->count();
+            $totalVerifiedOrder = TaskPerformer::where('verified_by', Auth::id())->count();
+
+            return $this->successResponse([
+                'my_profile'=>  $userDetails,
+                'total_verified_accounts' => $totalVerified,
+                'total_verified_task' => $totalVerifiedTask,
+                'total_verified_order' => $totalVerifiedOrder,
+            ], 'User Details Retrieve' ,Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong while retrieving your profile.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function updateProfile(Request $request){
+        try {
+            $data = $request->validate([
+                'name'       => 'required|string|max:255',
+                'avatar'      => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
+            ]);
+
+            $userDetails = Auth::user();
+
+            if ($request->hasFile('avatar')) {
+                $file = $request->file('avatar');
+                $extension = $file->getClientOriginalExtension();
+
+                $fileName = uniqid() . '-' . time() . '.' . $extension;
+
+                if ($userDetails->avatar && Storage::disk('public')->exists($userDetails->avatar)) {
+                    Storage::disk('public')->delete($userDetails->avatar);
+                }
+
+                $filePath = $file->storeAs('avatars', $fileName, 'public');
+                $data['avatar'] = $filePath;
+            }
+
+            $userDetails->update($data);
+
+            $userDetails->avatar = asset('storage/' . $filePath);
+
+            return $this->successResponse($userDetails, 'Profile Data updated' ,Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong while retrieving your profile. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

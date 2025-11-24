@@ -69,7 +69,7 @@ class CountryController extends Controller
     public function addNewCountry(Request $request)
     {
         try {
-           
+
             $validator = Validator::make($request->all(), [
                 'name'       => 'required|string|unique:countries,name',
                 'dial_code'  => 'required|string|unique:countries,dial_code',
@@ -152,10 +152,10 @@ class CountryController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'name'      => 'sometimes|string|unique:countries,name,' . $id,
-                'dial_code' => 'sometimes|string|unique:countries,dial_code,' . $id,
-                'flag'      => 'sometimes|image|mimes:png,jpg,jpeg|max:2048',
-                'rate'      => 'sometimes|numeric',
+                'name'          => 'sometimes|string|unique:countries,name,' . $id,
+                'dial_code'     => 'sometimes|string|unique:countries,dial_code,' . $id,
+                'flag'          => 'sometimes|image|mimes:png,jpg,jpeg|max:2048',
+                'rate'          => 'sometimes|numeric',
                 'currency'      => 'sometimes|string',
             ]);
 

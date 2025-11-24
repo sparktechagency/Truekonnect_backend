@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\AdminDashboard;
 use App\Http\Controllers\API\AdminProfile;
 use App\Http\Controllers\API\AppController;
 use App\Http\Controllers\API\AuthController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\API\ContentControll;
 use App\Http\Controllers\API\CountryController;
 use App\Http\Controllers\API\EmailNotificationController;
 use App\Http\Controllers\API\FinancialController;
+use App\Http\Controllers\API\NotificationCenter;
 use App\Http\Controllers\API\PaymentController;
 use App\Http\Controllers\API\PerformanceAnalytics;
 use App\Http\Controllers\API\ReviewerController;
@@ -15,6 +17,7 @@ use App\Http\Controllers\API\SocialMediaController;
 use App\Http\Controllers\API\SocialMediaServiceController;
 use App\Http\Controllers\API\SupportController;
 use App\Http\Controllers\API\TaskController;
+use App\Http\Controllers\API\UserLeaderboard;
 use App\Http\Controllers\API\UserManagementController;
 use App\Http\Controllers\API\WithdrawalController;
 use App\Http\Middleware\AdminMiddelware;
@@ -22,7 +25,6 @@ use App\Http\Middleware\BrandMiddelware;
 use App\Http\Middleware\CommonBrandOrPerformerMiddleware;
 use App\Http\Middleware\ReviewerMiddelware;
 use App\Http\Middleware\UserMiddelware;
-use App\Http\Controllers\API\NotificationCenter;
 use Illuminate\Support\Facades\Route;
 
 //Route::post('/test-payment', [PaymentController::class, 'testPayment']);
@@ -52,6 +54,8 @@ Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('forgot-password', 'forgotPassword');
     Route::put('set-new-password', 'setNewPassword'); // point to controller method
     Route::post('verify-otp', 'otpVerify');
+    Route::post('verify-phone-otp', 'otpPhoneVerify');
+    Route::post('resend-phone-otp', 'resendPhoneOTP');
     Route::post('changepassword', 'changePassword');
     Route::post('refreshtoken', 'refreshToken');
     Route::post('signout', 'signOut');
@@ -70,12 +74,19 @@ Route::prefix('app')->group(function () {
             Route::put('tokenconvert','tokenConvert');
         });
     });
+    Route::controller(UserLeaderboard::class)->group(function () {
+        Route::get('performer/leaderboard','performerLeaderboard');
+    });
     Route::middleware(BrandMiddelware::class)->group(function () {
         Route::controller(AppController::class)->group(function () {});
         Route::prefix('task')->controller(TaskController::class)->group(function () {
             Route::post('create','createTask');
             Route::get('all','myTask');
             Route::put('edit/{id}','editTask');
+        });
+
+        Route::controller(UserLeaderboard::class)->group(function () {
+            Route::get('brand/leaderboard','brandLeaderboard');
         });
 
     });
@@ -105,8 +116,8 @@ Route::prefix('reviewer')->middleware(ReviewerMiddelware::class)->group(function
     Route::controller(ReviewerDashboardController::class)->prefix('account-verification')->group(function () {
             Route::get('all', 'allVerificationRequest');
             Route::get('view/{id}', 'viewSocialAccountVerify');
-            Route::post('approved', 'VerifySocialAccount');
-            Route::post('rejected', 'rejectSocialAccount');
+            Route::post('approved/{socialId}', 'VerifySocialAccount');
+            Route::post('rejected/{socialId}', 'rejectSocialAccount');
     });
     Route::prefix('task')->controller(TaskController::class)->group(function () {
             Route::get('all','allTask');
@@ -119,7 +130,13 @@ Route::prefix('reviewer')->middleware(ReviewerMiddelware::class)->group(function
             Route::put('approved/{id}','ptapproved');
             Route::put('rejected/{id}','ptrejectTask');
             Route::put('adminreview/{id}','ptadminReview');
-
+    });
+    Route::controller(ReviewerController::class)->group(function () {
+        Route::get('myProfile','myProfile');
+        Route::post('update/profile','updateProfile');
+    });
+    Route::controller(ReviewerDashboardController::class)->group(function () {
+        Route::get('dashboard','dashboardHistory');
     });
     Route::prefix('support')->controller(SupportController::class)->group(function(){
         Route::get('allsupportticket','allPendingTickets');
@@ -129,10 +146,10 @@ Route::prefix('reviewer')->middleware(ReviewerMiddelware::class)->group(function
 });
 Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
     Route::controller(CountryController::class)->group(function(){
-        Route::post('add-countrie', 'addNewCountry');
-        Route::get('all-countrie', 'viewAllCountries');
-        Route::put('edit-countrie/{id}', 'editCountry');
-        Route::delete('delete-countrie/{id}', 'deleteCountry');
+        Route::post('add-country', 'addNewCountry');
+        Route::get('all-country', 'viewAllCountries');
+        Route::put('edit-country/{id}', 'editCountry');
+        Route::delete('delete-country/{id}', 'deleteCountry');
     });
     Route::prefix('social-media')->group(function () {
         Route::controller(SocialMediaController::class)->group(function(){
@@ -218,5 +235,9 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
 
         Route::get('list','adminList');
         Route::post('store','addAdmin');
+    });
+
+    Route::controller(AdminDashboard::class)->group(function(){
+        Route::get('dashboard','adminDashboard');
     });
 });

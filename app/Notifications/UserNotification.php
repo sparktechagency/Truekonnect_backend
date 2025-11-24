@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Auth;
 
 class UserNotification extends Notification
 {
@@ -40,6 +41,7 @@ class UserNotification extends Notification
         return [
             'title' => $this->title,
             'body' => $this->body,
+            'sender_id' => Auth::id(),
         ];
     }
 

@@ -43,9 +43,9 @@ class KorbaXchangeService
         return $this->makeRequest('disburse', $data);
     }
 
-    public function directCard(array $data)
+    public function ussdOTP(array $data)
     {
-        return $this->makeRequest('direct_card_collection', $data);
+        return $this->makeRequest('ussd_otp', $data);
     }
 
 
