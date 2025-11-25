@@ -18,21 +18,24 @@ class FinancialController extends Controller
                 'task:id,country_id,sms_id,total_price',
                 'task.engagement:id,engagement_name',
                 'task.country:id,name,flag'
-            ])->where('status', 'pending')->get();
+            ])->where('status', 'pending')
+                ->paginate('10');
 
             $completed = TaskPerformer::with([
                 'performer:id,name,email,phone',
                 'task:id,country_id,sms_id,total_price',
                 'task.engagement:id,engagement_name',
                 'task.country:id,name,flag'
-            ])->where('status', 'completed')->get();
+            ])->where('status', 'completed')
+                ->paginate('10');
 
             $blocked = TaskPerformer::with([
                 'performer:id,name,email,phone',
                 'task:id,country_id,sms_id,total_price',
                 'task.engagement:id,engagement_name',
                 'task.country:id,name,flag'
-            ])->where('status', 'blocked')->get();
+            ])->where('status', 'blocked')
+                ->paginate('10');
 
             return $this->successResponse([
                 'Pending Approval' => $finance,

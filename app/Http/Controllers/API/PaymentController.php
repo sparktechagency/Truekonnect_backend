@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Models\Payment;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Notifications\UserNotification;
@@ -68,7 +69,7 @@ class PaymentController extends Controller
             $user->notify(new UserNotification($title, $body));
 
             return $this->successResponse([
-                $response,
+                'response'=> $response,
                 'trnxId'=> $transactionId
             ],'Payment Initiated Successfully by Brand.',Response::HTTP_OK);
 
@@ -101,6 +102,14 @@ class PaymentController extends Controller
                 'status'  => false,
                 'message' => 'Insufficient Balance.',
             ], 400);
+        }
+
+        if (Auth::user()->withdrawal_status == '0'){
+            return $this->errorResponse("You don't have permission to withdraw.",Response::HTTP_FORBIDDEN);
+        }
+
+        if (!Task::where('user_id', Auth::id())->exists()) {
+            return $this->errorResponse("Purchase at least one task by ".env('APP_NAME')." app & add that account at my profile section in link social account",Response::HTTP_FORBIDDEN);
         }
 
         $transactionId = 'WD' . time() . rand(100, 999);
@@ -159,7 +168,10 @@ class PaymentController extends Controller
 //                'data'    => [$response,'transactionId'=>$transactionId],
 //            ]);
 
-            return $this->successResponse([$response,'transactionId'=>$transactionId], 'Withdrawal request sent successfully.', Response::HTTP_OK);
+            return $this->successResponse([
+                'response'=>$response,
+                'transactionId'=>$transactionId
+            ], 'Withdrawal request sent successfully.', Response::HTTP_OK);
         } catch (\Exception $e) {
 //            return response()->json([
 //                'status'  => false,
@@ -193,7 +205,7 @@ class PaymentController extends Controller
                 ]);
 
 
-            return response()->json(['status' => true]);
+            return $this->successResponse(null,'Payment successful.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
             return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);

@@ -22,12 +22,12 @@ class NotificationCenter extends Controller
                     'id' => $n->id,
                     'title' => $n->data['title'] ?? null,
                     'body' => $n->data['body'] ?? null,
-                    'read_at' => $n->read_at->format('M d, Y h:i:s A') ?? null,
+                    'read_at' => $n->read_at ? $n->read_at->format('M d, Y h:i:s A') : null,
                     'created_at' => $n->created_at->format('M d, Y h:i:s A'),
                 ];
             });
 
-            return $this->successResponse($notifications,'Notification retrive successfully.', Response::HTTP_OK);
+            return $this->successResponse($notifications,'Notification retrieve successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -114,7 +114,7 @@ class NotificationCenter extends Controller
 
             $notification->delete();
 
-            return $this->successResponse($notification, 'Notification deleted successfully.',Response::HTTP_OK);
+            return $this->successResponse(null, 'Notification deleted successfully.',Response::HTTP_OK);
         }catch (\Exception $e){
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }catch (TokenExpiredException $exception){
@@ -133,9 +133,9 @@ class NotificationCenter extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            $user->notifications->delete();
+            $user->notifications()->delete();
 
-            return $this->successResponse(null, 'Notifications deleted successfully.', Response::HTTP_OK);
+            return $this->successResponse(null, 'All notifications deleted successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e){
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);

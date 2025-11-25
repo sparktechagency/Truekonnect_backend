@@ -17,8 +17,15 @@ use Illuminate\Support\Facades\Validator;
 class ReviewerDashboardController extends Controller
 {
     public function allVerificationRequest(){
-        return $sc=SocialAccount::with(['user:id,name,avatar',
-    'social:id,name,icon_url'])->where('status','pending')->paginate(10,['id', 'user_id', 'sm_id', 'profile_name','note', 'profile_image', 'status']);
+        try {
+            $sc=SocialAccount::with(['user:id,name,avatar','social:id,name,icon_url'])
+                ->where('status','pending')
+                ->paginate(10,['id', 'user_id', 'sm_id', 'profile_name','note', 'profile_image', 'status']);
+            return $this->successResponse($sc,'All Verification Request',Response::HTTP_OK);
+        }catch (\Exception $e){
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
     }
 
     public function viewSocialAccountVerify($id){
@@ -64,7 +71,7 @@ class ReviewerDashboardController extends Controller
 
             // Fetch social account
             $sa = SocialAccount::findOrFail($socialId);
-//            dd($sa);
+
             if (!$sa){
                 return $this->errorResponse('Social Account not found', Response::HTTP_NOT_FOUND);
             }
@@ -84,42 +91,25 @@ class ReviewerDashboardController extends Controller
             $body = 'Hi ' . $sa->User->name . ', your account is verified. You can withdrawal now';
 
             $user->notify(new UserNotification($title, $body));
-            return response()->json([
-                'status' => true,
-                'message' => 'Social account verified successfully.',
-                'data' => [
-                    'social_account' => $sa,
-                    'user' => $user,
-                ],
-            ], 200);
+
+            return $this->successResponse([
+                'social_account' => $sa,
+                'user' => $user],'Social account verified successfully.',Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Token error.',
-                'error' => $e->getMessage(),
-            ], 401);
+            return $this->errorResponse('Token error. '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Record not found.',
-                'error' => $e->getMessage(),
-            ], 404);
+            return $this->errorResponse('Record not found. '.$e->getMessage(),Response::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Something went wrong.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function rejectSocialAccount(Request $request,$socialId)
     {
         try {
-            // Validate request
             $validator = Validator::make($request->all(), [
 //                'id'                => 'required|exists:social_accounts,id',
 //                'status'            => 'required|in:rejected',
@@ -135,10 +125,9 @@ class ReviewerDashboardController extends Controller
                 ], 422);
             }
 
-            // Authenticated reviewer
             $verifyBy = JWTAuth::parseToken()->authenticate();
 
-            // Fetch the social account
+
             $sa = SocialAccount::findOrFail($socialId);
             $sa->status = 'rejected';
             $sa->verification_by = Auth::id();
@@ -157,35 +146,16 @@ class ReviewerDashboardController extends Controller
 
             $user->notify(new UserNotification($title, $body));
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Social account rejected successfully.',
-                'data' => [
-                    'social_account' => $sa,
-                    'user' => $user,
-                ],
-            ], 200);
+            return $this->successResponse(['social_account' => $sa, 'user' => $user],'Social account rejected.',Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Token error.',
-                'error' => $e->getMessage(),
-            ], 401);
+            return $this->errorResponse('Token error. '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Record not found.',
-                'error' => $e->getMessage(),
-            ], 404);
+            return $this->errorResponse('Record not found. '.$e->getMessage(),Response::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Something went wrong.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

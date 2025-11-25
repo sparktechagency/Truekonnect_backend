@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use App\Models\SupportTicket;
 use App\Mail\SupportTicketMail;
+use Illuminate\Http\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Mail;
@@ -18,14 +19,10 @@ class SupportController extends Controller
 {
     public function newticket(Request $request){
        try {
-            // Parse and authenticate JWT token
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found or token invalid.',
-                ], 401);
+                return $this->errorResponse('User Not Found',Response::HTTP_NOT_FOUND);
             }
 
             // Validate user input
@@ -60,32 +57,13 @@ class SupportController extends Controller
            foreach ($allUser as $notifyUser) {
                $notifyUser->notify(new UserNotification($title, $body));
            }
-            return response()->json([
-                'success' => true,
-                'message' => 'Support ticket created successfully.',
-                'data' => $ticket,
-            ], 201);
-
+            return $this->successResponse($ticket,'Ticket Raised',Response::HTTP_OK);
         } catch (JWTException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token. Please login again.',
-                'error' => $e->getMessage(),
-            ], 401);
-
+           return $this->errorResponse('Invalid Token',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $e->errors(),
-            ], 422);
-
+           return $this->errorResponse('Validation Failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while creating the ticket.',
-                'error' => $e->getMessage(),
-            ], 500);
+           return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function allPendingTickets()
@@ -97,32 +75,15 @@ class SupportController extends Controller
                 ->get();
 
             if ($tickets->isEmpty()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'No pending tickets found.',
-                    'data' => [],
-                ], 200);
+                return $this->successResponse($tickets,'No pending tickets found.',Response::HTTP_OK);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Pending tickets fetched successfully.',
-                'data' => $tickets,
-            ], 200);
+            return $this->successResponse($tickets,'Pending tickets found.',Response::HTTP_OK);
 
         } catch (JWTException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token. Please login again.',
-                'error' => $e->getMessage(),
-            ], 401);
-
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while fetching pending tickets.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function answerTicket(Request $request, $id)
@@ -131,10 +92,7 @@ class SupportController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found or token invalid.',
-                ], 401);
+                return $this->errorResponse('User not found  ',Response::HTTP_NOT_FOUND);
             }
 
             // Validate reply input
@@ -147,28 +105,16 @@ class SupportController extends Controller
             $ticket = SupportTicket::find($id);
             $customer = User::find($validated['user_id']);
             if (!$ticket) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ticket not found.',
-                ], 404);
+                return $this->errorResponse('Ticket not found',Response::HTTP_NOT_FOUND);
             }
 
             if (!$customer) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found.',
-                ], 404);
+                return $this->errorResponse('Customer not found',Response::HTTP_NOT_FOUND);
             }
             if ($ticket->status=='answered') {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'This support ticket has already been answered.',
-                ], 409);
+                return $this->errorResponse('Ticket already answered',Response::HTTP_CONFLICT);
             }elseif ($ticket->status=='admin_review') {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'This support ticket has already been move to admin review.',
-                ], 409);
+                return $this->errorResponse('Ticket already move to admin review',Response::HTTP_CONFLICT);
             }else{
                 $reply=$validated['reply'];
                 $ticket->answer = $validated['reply'];
@@ -183,33 +129,15 @@ class SupportController extends Controller
                 $body  = "Hello {$customer->name}, your support ticket '{$ticket->subject}' has been answered. Reply: {$reply}";
 
                 $customer->notify(new UserNotification($title, $body));
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Ticket answered successfully.',
-                    'data' => $ticket,
-                ], 200);
+                return $this->successResponse($ticket,'Ticket Answered',Response::HTTP_OK);
             }
 
         } catch (JWTException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token. Please login again.',
-                'error' => $e->getMessage(),
-            ], 401);
-
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $e->errors(),
-            ], 422);
-
+            return $this->errorResponse('Validation Failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while answering the ticket.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function moveToAdmin(Request $request, $ticket_id)
@@ -218,10 +146,7 @@ class SupportController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found or token invalid.',
-                ], 401);
+                return $this->errorResponse('User not found  ',Response::HTTP_NOT_FOUND);
             }
 
             // Validate reason
@@ -231,24 +156,15 @@ class SupportController extends Controller
 
             $ticket = SupportTicket::find($ticket_id);
             if (!$ticket) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ticket not found.',
-                ], 404);
+                return $this->errorResponse('Ticket not found',Response::HTTP_NOT_FOUND);
             }
             if ($ticket->status=='answered') {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'This support ticket has already been answered.',
-                ], 409);
+                return $this->errorResponse('Ticket already answered',Response::HTTP_CONFLICT);
             }elseif ($ticket->status=='admin_review') {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'This support ticket has already been move to admin review.',
-                ], 409);
+                return $this->errorResponse('Ticket already move to admin review',Response::HTTP_CONFLICT);
             }else{
                 $ticket->status = 'admin_review';
-                $ticket->admin_reason = $validated['reason']; // make sure this column exists
+                $ticket->admin_reason = $validated['reason'];
                 $ticket->save();
 
                 $title = 'Ticket Moved to Admin';
@@ -256,34 +172,18 @@ class SupportController extends Controller
 
                 $ticket->ticketcreator->notify(new UserNotification($title, $body));
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Ticket moved to admin successfully.',
-                    'data' => $ticket,
-                ], 200);
+                return $this->successResponse($ticket,'Ticket Moved to Admin',Response::HTTP_OK);
             }
 
 
         } catch (JWTException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token. Please login again.',
-                'error' => $e->getMessage(),
-            ], 401);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->errorResponse('Validation Failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
 
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while moving the ticket.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -385,25 +285,13 @@ class SupportController extends Controller
             }
 
         } catch (JWTException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token. Please login again.',
-                'error' => $e->getMessage(),
-            ], 401);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->errorResponse('Validation failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
 
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while answering the ticket.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

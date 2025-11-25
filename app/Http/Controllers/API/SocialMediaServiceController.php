@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use Illuminate\Http\Request;
 use App\Models\SocialMediaService;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 
 class SocialMediaServiceController extends Controller
@@ -22,11 +23,7 @@ class SocialMediaServiceController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Validation failed.',
-                    'errors'  => $validator->errors(),
-                ], 422);
+                return $this->errorResponse('Validation failed'.$validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $engagement = SocialMediaService::create([
@@ -38,18 +35,10 @@ class SocialMediaServiceController extends Controller
                 'unit_price'      => $request->unit_price,
             ]);
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'Engagement service added successfully.',
-                'data'    => $engagement,
-            ], 201);
+            return $this->successResponse($engagement,'Engagement service added successfully.',Response::HTTP_CREATED);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to add engagement service.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     // View all engagements
@@ -61,18 +50,10 @@ class SocialMediaServiceController extends Controller
                 ->orderBy('engagement_name', 'asc')
                 ->get();
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'Engagement services retrieved successfully.',
-                'data'    => $engagements,
-            ], 200);
+            return $this->successResponse($engagements,'Engagements viewed successfully.',Response::HTTP_CREATED);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to fetch engagement services.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -82,10 +63,7 @@ class SocialMediaServiceController extends Controller
         try {
             $engagement = SocialMediaService::find($id);
             if (!$engagement) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Engagement service not found.',
-                ], 404);
+                return $this->errorResponse('Engagement not found',Response::HTTP_NOT_FOUND);
             }
 
             $validator = Validator::make($request->all(), [
@@ -96,11 +74,7 @@ class SocialMediaServiceController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Validation failed.',
-                    'errors'  => $validator->errors(),
-                ], 422);
+                return $this->errorResponse('Validation failed '.$validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $engagement->update($request->only([
@@ -110,46 +84,28 @@ class SocialMediaServiceController extends Controller
                 'unit_price',
             ]));
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'Engagement service updated successfully.',
-                'data'    => $engagement,
-            ], 200);
+            return $this->successResponse($engagement,'Engagement updated successfully.',Response::HTTP_OK);
+
+
 
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to update engagement service.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
-    // Delete engagement
     public function deleteEngagement($id)
     {
         try {
             $engagement = SocialMediaService::find($id);
             if (!$engagement) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Engagement service not found.',
-                ], 404);
+                return $this->errorResponse('Engagement not found',Response::HTTP_NOT_FOUND);
             }
 
             $engagement->delete();
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'Engagement service deleted successfully.',
-            ], 200);
+            return $this->successResponse(null,'Engagement deleted successfully.',Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to delete engagement service.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

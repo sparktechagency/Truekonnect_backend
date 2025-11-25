@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use App\Models\TaskPerformer;
 use App\Models\SocialMediaService;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -89,7 +90,7 @@ class TaskController extends Controller
                 'social:id,name,icon_url',
                 'engagement:id,engagement_name',
                 'creator:id,name,avatar'
-            ])->where('status','pending')->orderBy('created_at', 'desc')->paginate(10,[
+            ])->whereIn('status', ['pending','verifyed','rejected','completed','admin_review'])->orderBy('created_at', 'desc')->where('user_id',Auth::id())->paginate(10,[
                 'id',
                 'sm_id','country_id','sms_id','user_id',
                 'quantity',

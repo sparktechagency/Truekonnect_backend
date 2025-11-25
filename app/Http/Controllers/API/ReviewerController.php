@@ -31,11 +31,7 @@ class ReviewerController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Validation failed.',
-                    'errors'  => $validator->errors(),
-                ], 422);
+                return $this->errorResponse('Validation failed. '.$validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $authUser = JWTAuth::user();
@@ -51,17 +47,10 @@ class ReviewerController extends Controller
                 'verification_by'  => $authUser->id ?? null,
             ]);
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'Reviewer successfully registered.',
-                'data'    => $user,
-            ], 201);
+            return $this->successResponse($user,'Reviewer added.', Response::HTTP_OK);
+
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Something went wrong while adding the reviewer.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function allReviewer()
@@ -70,23 +59,13 @@ class ReviewerController extends Controller
             $reviewers = User::where('role', 'reviewer')->paginate(10);
 
             if ($reviewers->isEmpty()) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'No reviewers found.',
-                ], 404);
+                return $this->errorResponse('There are no reviewers.', Response::HTTP_NOT_FOUND);
             }
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'All reviewers retrieved successfully.',
-                'data'    => $reviewers,
-            ], 200);
+            return $this->successResponse($reviewers,'Reviewers list.', Response::HTTP_OK);
+
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to retrieve reviewers.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function actionReviewer(Request $request, $id)
@@ -98,11 +77,7 @@ class ReviewerController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Validation failed.',
-                    'errors'  => $validator->errors(),
-                ], 422);
+                return $this->errorResponse('Validation failed. '.$validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $reviewer = User::where('role', 'reviewer')->findOrFail($id);
@@ -111,28 +86,16 @@ class ReviewerController extends Controller
 
             Mail::to($reviewer->email)->send(new AccountbannedMail($reviewer, $request->status, $request->message));
 
-            return response()->json([
-                'status'  => true,
-                'message' => "Reviewer account has been {$request->status}.",
-                'data'    => $reviewer,
-            ], 200);
+            return $this->successResponse($reviewer,"Reviewer account has been {$request->status}.", Response::HTTP_OK);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Reviewer not found.',
-            ], 404);
+            return $this->errorResponse('Record not found. '.$e->getMessage(), Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to update reviewer status.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function viewReviewer($id)
     {
         try {
-            // Find the reviewer by ID and role
             $reviewer = User::where('role', 'reviewer')->findOrFail($id);
 
             $totalVerified = User::where('verification_by', $id)->count();
@@ -161,16 +124,9 @@ class ReviewerController extends Controller
             ],'Reviewer successfully viewed!',Response::HTTP_OK);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Reviewer not found.',
-            ], 404);
+            return $this->errorResponse('Record not found. '.$e->getMessage(), Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Failed to retrieve reviewer.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

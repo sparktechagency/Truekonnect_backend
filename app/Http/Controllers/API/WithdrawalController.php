@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\TaskPerformer;
 use App\Notifications\UserNotification;
 use Illuminate\Http\Response;
 use Throwable;
@@ -23,7 +24,7 @@ class WithdrawalController extends Controller
             if (!$user) {
                 return $this->errorResponse('User not found.',Response::HTTP_NOT_FOUND);
             }
-            $taskCount = Task::where('user_id', $user->id)->count();
+            $taskCount = TaskPerformer::where('user_id', $user->id)->where('status','completed')->count();
             $info = User::where('id', $user->id)
                 ->with('country:id,name,token_rate,currency_code')
                 ->first(['id','country_id','balance','earn_token','convert_token','withdrawal_status']);

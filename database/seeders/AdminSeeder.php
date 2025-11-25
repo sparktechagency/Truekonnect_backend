@@ -17,31 +17,44 @@ class AdminSeeder extends Seeder
 
         $users=[
             [
-                'name' => 'Admin Nazmul',
-                'email' => 'admin@gmail.com', 
-                'phone' => '018906255852',
+                'name' => 'Admin',
+                'email' => 'admin@gmail.com',
+                'phone' => '01234567891',
                 'country_id' => 1,
                 'role' => 'admin',
                 'status' => 'active',
                 'password' => Hash::make('12345678'),
+                'email_verified_at' => now(),
             ],
             [
-                'name' => 'Performer Nazmul',
-                'email' => 'performer@gmail.com', 
-                'phone' => '018906255853',
+                'name' => 'Performer',
+                'email' => 'performer@gmail.com',
+                'phone' => '01234567892',
                 'country_id' => 1,
                 'role' => 'performer',
                 'status' => 'active',
                 'password' => Hash::make('12345678'),
+                'phone_verified_at' => now(),
             ],
             [
-                'name' => 'Reviewer Nazmul',
-                'email' => 'reviewer@gmail.com', 
-                'phone' => '018906255854',
+                'name' => 'Brand',
+                'email' => 'brand@gmail.com',
+                'phone' => '01234567893',
+                'country_id' => 1,
+                'role' => 'brand',
+                'status' => 'active',
+                'password' => Hash::make('12345678'),
+                'phone_verified_at' => now(),
+            ],
+            [
+                'name' => 'Reviewer',
+                'email' => 'reviewer@gmail.com',
+                'phone' => '01234567894',
                 'country_id' => 1,
                 'role' => 'reviewer',
                 'status' => 'active',
                 'password' => Hash::make('12345678'),
+                'email_verified_at' => now(),
             ],
         ];
         foreach($users as $list){
@@ -53,6 +66,8 @@ class AdminSeeder extends Seeder
                 'role' => $list['role'],
                 'status' => $list['status'],
                 'password' => $list['password'],
+                'email_verified_at' => $list['email_verified_at'] ?? null,
+                'phone_verified_at' => $list['phone_verified_at'] ?? null,
             ]);
         }
     }

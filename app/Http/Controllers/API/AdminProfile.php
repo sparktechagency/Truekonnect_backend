@@ -8,8 +8,12 @@ use App\Models\TermCondition;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AdminProfile extends Controller
 {
@@ -17,11 +21,24 @@ class AdminProfile extends Controller
     {
         try {
             $data = $request->validate([
-                'name' => 'required',
-                'phone' => 'required',
+                'name' => 'sometimes',
+                'phone' => 'sometimes',
+                'avatar' => 'sometimes|mimes:jpeg,jpg,png,webp|max:20480',
             ]);
 
             $user = Auth::user();
+
+            if ($request->hasFile('avatar')) {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+
+                $file = $request->file('avatar');
+                $extension = $file->getClientOriginalExtension();
+                $fileName = Str::slug($request->name ?? $user->avatar) . '.' . $extension;
+                $iconPath = $file->storeAs('avatars', $fileName, 'public');
+                $data['avatar'] = $iconPath;
+            }
 
             $user->update($data);
 
@@ -153,7 +170,20 @@ class AdminProfile extends Controller
             $data['password'] = Hash::make($data['password']);
             $data['role'] = 'admin';
 
+            $otp = rand(100000, 999999);
+            $otpExpiry = Carbon::now()->addMinutes(10);
+
+            $data['otp'] = $otp;
+            $data['otp_expires_at'] = $otpExpiry;
+
+
             $user = User::create($data);
+
+            $user->otpVerifyLink = route('admin.otp.verify');
+            Mail::raw("Your OTP is: $otp. It will expire at " . $otpExpiry->format('H:i:s'), function ($message) use ($request) {
+                $message->to($request->email)
+                    ->subject('Your OTP Code');
+            });
 
             return $this->successResponse($user, 'Admin added successfully.', Response::HTTP_OK);
         }

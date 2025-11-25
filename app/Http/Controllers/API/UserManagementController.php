@@ -43,6 +43,10 @@ class UserManagementController extends Controller
     {
         try {
             $userList = User::with('country:id,flag')->find($userId);
+
+            if(!$userList){
+                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+            }
             $referredUser = User::with('country:id,flag')->where('referral_id', $userId)->get();
             $totalWithdrawal = Withdrawal::where('user_id', $userId)->where('status', 'success')->sum('amount');
             $totalEarnedToken = User::where('id', $userId)->sum('earn_token');
@@ -76,7 +80,7 @@ class UserManagementController extends Controller
                 'Total Earned Token' => $totalEarnedToken,
                 'Total Task Perform' => $totalTaskPerform,
                 'Brand Details' => $brandDetails,
-            ], 'All users retrieved successfully', Response::HTTP_OK);
+            ], 'User retrieved successfully', Response::HTTP_OK);
         }catch (\Exception $e){
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -123,6 +127,10 @@ class UserManagementController extends Controller
             ]);
 
             $user = User::find($userId);
+
+            if (!$user) {
+                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+            }
 
             $user->earn_token += $data['earn_token'];
 

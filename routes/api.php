@@ -52,10 +52,11 @@ Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('signup', 'signUp');
     Route::post('signin', 'signIn');
     Route::post('forgot-password', 'forgotPassword');
-    Route::put('set-new-password', 'setNewPassword'); // point to controller method
-    Route::post('verify-otp', 'otpVerify');
+    Route::put('set-new-password', 'setNewPassword');
+    Route::post('verify-otp', 'otpVerify')->name('admin.otp.verify');
     Route::post('verify-phone-otp', 'otpPhoneVerify');
     Route::post('resend-phone-otp', 'resendPhoneOTP');
+    Route::post('resend-email-otp', 'resendEmailOTP');
     Route::post('changepassword', 'changePassword');
     Route::post('refreshtoken', 'refreshToken');
     Route::post('signout', 'signOut');
@@ -84,11 +85,9 @@ Route::prefix('app')->group(function () {
             Route::get('all','myTask');
             Route::put('edit/{id}','editTask');
         });
-
         Route::controller(UserLeaderboard::class)->group(function () {
             Route::get('brand/leaderboard','brandLeaderboard');
         });
-
     });
     Route::middleware(CommonBrandOrPerformerMiddleware::class)->group(function () {
         Route::controller(AppController::class)->group(function(){
@@ -100,7 +99,6 @@ Route::prefix('app')->group(function () {
         Route::controller(SupportController::class)->group(function(){
             Route::post('openticket','newticket');
         });
-
         Route::controller(PaymentController::class)->group(function() {
             Route::post('/brand-payment', 'GetPaymentFromBrand');
             Route::post('/performer-payment', 'PayoutToPerformer');
@@ -189,18 +187,15 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
             Route::put('answareusersupport/{id}','adminAnswerTicket');
        });
     });
-
     Route::prefix('management')->controller(UserManagementController::class)->group(function(){
         Route::get('user/list','index');
         Route::get('performer/details/{userId}','performerDetails');
         Route::post('change/status/{userId}','changeStatus');
         Route::post('send/token/{userId}','sendToken');
     });
-
     Route::prefix('task/management')->controller(TaskController::class)->group(function(){
         Route::get('active/task','taskManagement');
         Route::get('task/details/{taskId}','taskDetails');
-
         Route::get('all/orders','orderManagement');
         Route::get('order/details/{orderId}','orderDetails');
     });

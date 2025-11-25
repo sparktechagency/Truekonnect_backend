@@ -37,6 +37,7 @@ class UserLeaderboard extends Controller
 
                 if ($item->user_id == $userId) {
                     $currentUser = $item;
+                    $currentUser->performer->name = 'You'; // Change name to "You"
                 } else {
                     $rankedData[] = $item;
                 }
@@ -48,7 +49,7 @@ class UserLeaderboard extends Controller
                 $currentUser = (object)[
                     'user_id' => $userId,
                     'completed_tasks' => 0,
-                    'performer' => $user->name, // show name
+                    'performer' => (object)['name' => 'You'], // show "You"
                     'rank' => $lastRank,
                 ];
             }
@@ -56,10 +57,11 @@ class UserLeaderboard extends Controller
             array_unshift($rankedData, $currentUser);
 
             return $this->successResponse($rankedData, 'Leaderboard', Response::HTTP_OK);
-        }catch (\Exception $e){
-            return $this->errorResponse('Something went wrong'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
 
     public function brandLeaderboard()
     {
@@ -87,6 +89,12 @@ class UserLeaderboard extends Controller
 
                 if ($item->user_id == $userId) {
                     $currentUser = $item;
+                    // Set name to "You"
+                    if (isset($currentUser->creator)) {
+                        $currentUser->creator->name = 'You';
+                    } else {
+                        $currentUser->creator = (object)['name' => 'You'];
+                    }
                 } else {
                     $rankedData[] = $item;
                 }
@@ -98,7 +106,7 @@ class UserLeaderboard extends Controller
                 $currentUser = (object)[
                     'user_id' => $userId,
                     'completed_tasks' => 0,
-                    'performer' => $user->name,
+                    'creator' => (object)['name' => 'You'], // show "You"
                     'rank' => $lastRank,
                 ];
             }
@@ -106,8 +114,9 @@ class UserLeaderboard extends Controller
             array_unshift($rankedData, $currentUser);
 
             return $this->successResponse($rankedData, 'Leaderboard', Response::HTTP_OK);
-        }catch (\Exception $e){
-            return $this->errorResponse('Something went wrong'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
 }
