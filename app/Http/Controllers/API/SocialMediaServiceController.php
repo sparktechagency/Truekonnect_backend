@@ -41,7 +41,7 @@ class SocialMediaServiceController extends Controller
             return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    // View all engagements
+
     public function viewAllEngagements($id)
     {
         try {

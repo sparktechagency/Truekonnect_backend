@@ -9,7 +9,7 @@ class TaskPerformer extends Model
         protected $fillable=['user_id','task_id','token_earned','status','verified_by','rejection_reason'];
 
         public function  task(){
-                return $this->belongsTo(Task::class,'task_id'); 
+                return $this->belongsTo(Task::class,'task_id');
         }
         public function country(){
                 return $this->hasOneThrough(Countrie::class,Task::class,'id','id', 'task_id','country_id');
@@ -21,7 +21,11 @@ class TaskPerformer extends Model
                 return $this->hasOneThrough(User::class,Task::class,'id','id', 'task_id','user_id');
         }
         public function performer(){
-                return $this->belongsTo(User::class,'user_id'); 
+                return $this->belongsTo(User::class,'user_id');
+        }
+        public function reviewer()
+        {
+            return $this->belongsTo(User::class,'verified_by');
         }
         public function taskAttached(){
                 return $this->hasMany(TaskFile::class,'tp_id');

@@ -106,7 +106,6 @@ class SocialMediaController extends Controller
                 return $this->errorResponse('Social media not found!', Response::HTTP_NOT_FOUND);
             }
 
-            // Delete icon file
             if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
                 Storage::disk('public')->delete($platform->icon_url);
             }

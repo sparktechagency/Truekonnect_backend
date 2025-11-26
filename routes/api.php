@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\Route;
 //Route::post('/test-payment', [PaymentController::class, 'testPayment']);
 ////Route::get('/callback', [PaymentController::class, 'callback']);
 //Route::post('/networks', [PaymentController::class, 'getCollectionNetworks']);
-////Route::get('/callback', [PaymentController::class, 'callbackURL'])->name('korba.callback');
+Route::get('/callback', [PaymentController::class, 'callbackURL'])->name('korba.callback');
 //
 //Route::post('card/payment', [PaymentController::class, 'cardCollection']);
 
@@ -51,7 +51,9 @@ Route::prefix('notification')->controller(NotificationCenter::class)->group(func
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('signup', 'signUp');
     Route::post('signin', 'signIn');
+    Route::post('otp/send', 'forgetPasswordOTPSend');
     Route::post('forgot-password', 'forgotPassword');
+    Route::post('otp/verify', 'forgetOTPverify');
     Route::put('set-new-password', 'setNewPassword');
     Route::post('verify-otp', 'otpVerify')->name('admin.otp.verify');
     Route::post('verify-phone-otp', 'otpPhoneVerify');
@@ -83,6 +85,7 @@ Route::prefix('app')->group(function () {
         Route::prefix('task')->controller(TaskController::class)->group(function () {
             Route::post('create','createTask');
             Route::get('all','myTask');
+            Route::get('details/{id}','myTaskDetails');
             Route::put('edit/{id}','editTask');
         });
         Route::controller(UserLeaderboard::class)->group(function () {
@@ -90,6 +93,9 @@ Route::prefix('app')->group(function () {
         });
     });
     Route::middleware(CommonBrandOrPerformerMiddleware::class)->group(function () {
+        Route::controller(AuthController::class)->group(function () {
+            Route::get('my/profile','myProfile');
+        });
         Route::controller(AppController::class)->group(function(){
             Route::put('edit-profile', 'updateProfile');
             Route::post('switchRole', 'switchProfile');
@@ -102,7 +108,7 @@ Route::prefix('app')->group(function () {
         Route::controller(PaymentController::class)->group(function() {
             Route::post('/brand-payment', 'GetPaymentFromBrand');
             Route::post('/performer-payment', 'PayoutToPerformer');
-            Route::get('/callback', 'callbackURL')->name('korba.callback');
+//            Route::get('/callback', 'callbackURL')->name('korba.callback');
             Route::get('/networks', 'getCollectionNetworks');
             Route::get('/available/banks', 'bankLookup');
             Route::post('/customer/bank/account', 'customerLookup');

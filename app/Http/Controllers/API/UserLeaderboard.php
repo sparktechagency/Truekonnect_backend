@@ -37,7 +37,7 @@ class UserLeaderboard extends Controller
 
                 if ($item->user_id == $userId) {
                     $currentUser = $item;
-                    $currentUser->performer->name = 'You'; // Change name to "You"
+                    $currentUser->performer->name = 'You';
                 } else {
                     $rankedData[] = $item;
                 }
@@ -49,7 +49,7 @@ class UserLeaderboard extends Controller
                 $currentUser = (object)[
                     'user_id' => $userId,
                     'completed_tasks' => 0,
-                    'performer' => (object)['name' => 'You'], // show "You"
+                    'performer' => (object)['name' => 'You'],
                     'rank' => $lastRank,
                 ];
             }
@@ -106,7 +106,7 @@ class UserLeaderboard extends Controller
                 $currentUser = (object)[
                     'user_id' => $userId,
                     'completed_tasks' => 0,
-                    'creator' => (object)['name' => 'You'], // show "You"
+                    'creator' => (object)['name' => 'You'],
                     'rank' => $lastRank,
                 ];
             }

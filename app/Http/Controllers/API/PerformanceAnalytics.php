@@ -46,14 +46,14 @@ class PerformanceAnalytics extends Controller
                 ->where('tasks.country_id', $data['country_id']),
             $fromDate,
             $toDate,
-            'task_performers' // specify table for created_at
+            'task_performers'
         )->count();
         $totalWithdrawal = $applyDateRange(
             Withdrawal::join('users', 'withdrawals.user_id', '=', 'users.id')
                 ->where('users.country_id', $data['country_id']),
             $fromDate,
             $toDate,
-            'withdrawals' // specify table for created_at
+            'withdrawals'
         )->count();
         $totalTokenConversion = $applyDateRange(User::where('country_id', $data['country_id']), $fromDate, $toDate)->sum('convert_token');
         $totalRevenue = $applyDateRange(Payment::join('users', 'payments.user_id', '=', 'users.id')
@@ -63,7 +63,7 @@ class PerformanceAnalytics extends Controller
                 ->where('users.country_id', $data['country_id']),
             $fromDate,
             $toDate,
-            'withdrawals' // specify table for created_at
+            'withdrawals'
         )->sum('withdrawals.amount');
 
         $response = [

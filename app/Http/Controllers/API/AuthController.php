@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\API;
 
 use App\Models\Countrie;
+use App\Models\Payment;
 use App\Models\User;
 use App\Models\SocialMedia;
+use App\Models\Withdrawal;
 use App\Services\KorbaXchangeService;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -154,7 +156,34 @@ class AuthController extends Controller
 
         return $this->successResponse(['user' => $user, 'token' => $token], 'User Successfully Login', Response::HTTP_OK);
     }
-    public function forgotPassword(Request $request, KorbaXchangeService $korba)
+
+    public function myProfile()
+    {
+        try {
+            $user =JWTAuth::parseToken()->authenticate();
+
+            $payment = Payment::with('user:id,name,email,avatar')
+                ->whereHas('user', fn($q) => $q->where('referral_id', Auth::id()))
+                ->where('status', 'completed')
+                ->orderBy('created_at') // earliest first
+                ->get()
+                ->unique('user_id');
+
+            $referralsWithdrawals = Withdrawal::with('user:id,name,email,avatar')
+                ->whereHas('user', fn($q) => $q->where('referral_id', Auth::id()))
+                ->where('status', 'completed')
+                ->orderBy('created_at')
+                ->get()
+                ->unique('user_id');
+
+
+            return $this->successResponse(['user'=>$user->only(['avatar', 'name', 'email', 'phone']),'creator'=>$payment,'performer'=>$referralsWithdrawals], 'User Successfully Login', Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function forgetPasswordOTPSend(Request $request, KorbaXchangeService $korba)
     {
         $validator = Validator::make($request->all(), [
             'login' => 'required|string|max:255',
@@ -195,7 +224,7 @@ class AuthController extends Controller
                     'platform'     => env('APP_NAME') . ' OTP Expire at ' . $otpExpiry,
                 ];
 
-                $korba->ussdOTP($payload);
+              $otpSend =  $korba->ussdOTP($payload);
 
             } else {
                 Mail::raw("Your OTP is: $otp. It will expire at " . $otpExpiry->format('H:i:s'), function ($message) use ($user) {
@@ -204,13 +233,70 @@ class AuthController extends Controller
                 });
             }
 
-            return $this->successResponse($login, 'User Successfully Forgot Password', Response::HTTP_OK);
+            return $this->successResponse([
+                'otp'=>$otp,'otp send'=>$otpSend,'user'=>$login
+            ], 'OTP Send Successfully', Response::HTTP_OK);
 
         } catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
+    public function forgetOTPverify(Request $request, KorbaXchangeService $korba)
+    {
+        try {
+            $data = $request->validate([
+                'login' => 'required|string|max:255',
+                'otp' => 'required|string|max:255',
+            ]);
+
+
+            $user = User::where('phone', $data['login'])->orWhere('email', $data['login'])
+                ->where('otp',$data['otp'])
+                ->where('otp_expires_at','>',now())
+                ->first();
+
+            return $this->successResponse(['user'=>$user], 'OTP Verify Successfully', Response::HTTP_OK);
+        }
+        catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    public function forgotPassword(Request $request, KorbaXchangeService $korba)
+    {
+        try {
+        $validator = Validator::make($request->all(), [
+            'login' => 'required|string|max:255',
+            'otp' => 'required|string|max:255',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse('Validation errors'.$validator->errors(), Response::HTTP_BAD_REQUEST);
+        }
+
+        $login = $request->login;
+
+        $user = User::where('email', $login)
+            ->orWhere('phone', $login)
+            ->where('otp_expires_at', '>', now())
+            ->first();
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->otp = null;
+        $user->otp_expires_at = null;
+        $user->save();
+
+        return $this->successResponse($user, 'User Successfully Forgot Password', Response::HTTP_OK);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
     public function otpPhoneVerify(Request $request){
         $validator = Validator::make($request->all(), [
             'phone' => 'required|string|max:255|exists:users,phone',

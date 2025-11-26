@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\Task;
 use App\Models\TaskPerformer;
 use App\Models\User;
@@ -10,6 +11,7 @@ use App\Models\Withdrawal;
 use App\Notifications\UserNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 
@@ -19,7 +21,8 @@ class UserManagementController extends Controller
     public function index()
     {
         try {
-            $userActive = User::with('country:id,flag')
+            $userActive = User::with('country:id,name,flag')
+                ->withCount('referral')
                 ->where('role','brand')
                 ->orWhere('role','performer')
                 ->where('status','active')
@@ -32,10 +35,11 @@ class UserManagementController extends Controller
 //                ->get();
             ->paginate(10);
             return $this->successResponse(['active users'=>$userActive,'user banned'=>$userBanned],'All users retrieved successfully',Response::HTTP_OK);
-        } catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (TokenExpiredException $exception){
             return $this->errorResponse('Token expired. '.$exception->getMessage(), Response::HTTP_BAD_REQUEST);
+        }
+        catch (\Exception $e){
+            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -60,11 +64,21 @@ class UserManagementController extends Controller
                 $ongoingOrder = Task::where('user_id', $userId)->where('status', 'active')
                     ->whereColumn('quantity', '>', 'performed')->count();
 
-            $totalUserPaid = Task::join('payments', 'payments.task_id', '=', 'tasks.id')
-                ->where('tasks.user_id', $userId)
-                ->where('tasks.status', 'active')
-                ->whereColumn('payments.user_id', '!=', 'tasks.user_id')
-                ->count();
+                $payment = Payment::with('user:id,name,email,avatar')
+                    ->whereHas('user', fn($q) => $q->where('referral_id', $userId))
+                    ->where('status', 'completed')
+                    ->orderBy('created_at')
+                    ->unique('user_id')
+                    ->count();
+
+                $referralsWithdrawals = Withdrawal::with('user:id,name,email,avatar')
+                    ->whereHas('user', fn($q) => $q->where('referral_id', $userId))
+                    ->where('status', 'completed')
+                    ->orderBy('created_at')
+                    ->unique('user_id')
+                    ->count();
+
+            $totalUserPaid = $payment + $referralsWithdrawals;
 
 
                 $brandDetails = [

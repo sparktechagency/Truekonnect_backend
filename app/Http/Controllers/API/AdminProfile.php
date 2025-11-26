@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AdminProfile extends Controller
 {
@@ -26,7 +27,7 @@ class AdminProfile extends Controller
                 'avatar' => 'sometimes|mimes:jpeg,jpg,png,webp|max:20480',
             ]);
 
-            $user = Auth::user();
+            $user = JWTAuth::parseToken()->authenticate();
 
             if ($request->hasFile('avatar')) {
                 if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
@@ -150,7 +151,7 @@ class AdminProfile extends Controller
     public function adminList()
     {
         try {
-            $admin = User::where('role', 'admin')->get();
+            $admin = User::where('role', 'admin')->paginate(10);
 
             return $this->successResponse($admin, 'Admin list.', Response::HTTP_OK);
         }

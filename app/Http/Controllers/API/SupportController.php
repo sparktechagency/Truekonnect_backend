@@ -25,25 +25,22 @@ class SupportController extends Controller
                 return $this->errorResponse('User Not Found',Response::HTTP_NOT_FOUND);
             }
 
-            // Validate user input
             $validated = $request->validate([
                 'subject' => 'required|string|max:255',
                 'reason' => 'required|string',
                 'attachment' => 'nullable|file|mimetypes:image/jpeg,image/jpg,image/png,image/webp,pdf,doc,docx|max:20480',
             ]);
 
-            // Handle file upload
             $filePath = null;
             if ($request->hasFile('attachment')) {
                 $filePath = $request->file('attachment')->store('ticket_files', 'public');
             }
 
-            // Create the support ticket
             $ticket = SupportTicket::create([
                 'user_id' => $user->id,
                 'subject' => $validated['subject'],
-                'issue' => $validated['reason'], // make sure your DB column is 'issue'
-                'attachments' => $filePath ?? '', // or 'attachment' if that's your column name
+                'issue' => $validated['reason'],
+                'attachments' => $filePath ?? '',
                 'status' => 'pending',
             ]);
 
@@ -69,7 +66,6 @@ class SupportController extends Controller
     public function allPendingTickets()
     {
         try {
-            // Fetch all pending tickets (you can filter by user if needed)
             $tickets = SupportTicket::with('ticketcreator:id,name,email,phone,avatar,role')->where('status', 'pending')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -95,13 +91,11 @@ class SupportController extends Controller
                 return $this->errorResponse('User not found  ',Response::HTTP_NOT_FOUND);
             }
 
-            // Validate reply input
             $validated = $request->validate([
                 'reply' => 'required|string',
                 'user_id' => 'required|exists:users,id',
             ]);
 
-            // Find ticket
             $ticket = SupportTicket::find($id);
             $customer = User::find($validated['user_id']);
             if (!$ticket) {
@@ -118,7 +112,7 @@ class SupportController extends Controller
             }else{
                 $reply=$validated['reply'];
                 $ticket->answer = $validated['reply'];
-                $ticket->reviewed_by  = $user->id; // optional
+                $ticket->reviewed_by  = $user->id;
                 $ticket->status = 'answered';
                 $ticket->save();
 
@@ -193,35 +187,19 @@ class SupportController extends Controller
             // Fetch all pending tickets (you can filter by user if needed)
             $tickets = SupportTicket::with(['ticketcreator:id,name,email,phone,avatar,role','reviewer:id,name,email,phone,avatar,role'])->where('status', 'admin_review')
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->paginate(10);
 
             if ($tickets->isEmpty()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'No pending tickets found.',
-                    'data' => [],
-                ], 200);
+                return $this->successResponse(null,'Ticket not found',Response::HTTP_OK);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Admin review tickets fetched successfully.',
-                'data' => $tickets,
-            ], 200);
+            return $this->successResponse($tickets,'Ticket Reviewed',Response::HTTP_OK);
 
         } catch (JWTException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid or expired token. Please login again.',
-                'error' => $e->getMessage(),
-            ], 401);
+            return $this->errorResponse('Invalid expired token '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while fetching pending tickets.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
      public function adminAnswerTicket(Request $request, $id)
@@ -230,37 +208,23 @@ class SupportController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found or token invalid.',
-                ], 401);
+                return $this->errorResponse('User not found  ',Response::HTTP_NOT_FOUND);
             }
 
-            // Validate reply input
             $validated = $request->validate([
                 'reply' => 'required|string',
             ]);
 
-            // Find ticket
             $ticket = SupportTicket::find($id);
             if (!$ticket) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ticket not found.',
-                ], 404);
+                return $this->errorResponse('Ticket not found',Response::HTTP_NOT_FOUND);
             }
             $customer = User::find($ticket->user_id);
             if (!$customer) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found.',
-                ], 404);
+                return $this->errorResponse('User not found',Response::HTTP_NOT_FOUND);
             }
             if ($ticket->status=='answered') {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'This support ticket has already been answered.',
-                ], 409);
+                return $this->errorResponse('Ticket already answered',Response::HTTP_CONFLICT);
             }elseif ($ticket->status=='admin_review') {
 
                 $reply=$validated['reply'];
@@ -277,11 +241,7 @@ class SupportController extends Controller
 
                 $customer->notify(new UserNotification($title, $body));
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Ticket answered successfully.',
-                    'data' => $ticket,
-                ], 200);
+                return $this->successResponse($ticket,'Ticket Answered',Response::HTTP_OK);
             }
 
         } catch (JWTException $e) {

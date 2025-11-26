@@ -7,6 +7,7 @@ use App\Models\TaskPerformer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class FinancialController extends Controller
 {
@@ -62,6 +63,9 @@ class FinancialController extends Controller
             $tp->update($data);
 
             return $this->successResponse($tp, 'Status updated successfully', Response::HTTP_OK);
+        }
+        catch (JWTException $e){
+            return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
         catch (\Exception $e){
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);

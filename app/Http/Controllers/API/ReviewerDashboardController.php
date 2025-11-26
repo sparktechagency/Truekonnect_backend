@@ -69,19 +69,19 @@ class ReviewerDashboardController extends Controller
             $verifyBy = JWTAuth::parseToken()->authenticate();
 //            dd(Auth::user());
 
-            // Fetch social account
+
             $sa = SocialAccount::findOrFail($socialId);
 
             if (!$sa){
                 return $this->errorResponse('Social Account not found', Response::HTTP_NOT_FOUND);
             }
+
             $sa->status = 'verified';
             $sa->verification_by = Auth::id();
             $sa->verified_at = Now();
             $sa->save();
 
 
-            // Update related user
             $user = User::findOrFail($sa->user_id);
             $user->withdrawal_status = 1;
             $user->verification_by = Auth::id();
@@ -138,7 +138,7 @@ class ReviewerDashboardController extends Controller
             // Update related user
             $user = User::findOrFail($sa->user_id);
             $user->verification_by = null;
-            $user->withdrawal_status = '0'; // assuming rejected accounts can’t withdraw
+            $user->withdrawal_status = '0';
             $user->save();
 
             $title = $sa->social->name . ' is rejected';

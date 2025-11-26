@@ -56,8 +56,10 @@ class ReviewerController extends Controller
     public function allReviewer()
     {
         try {
-            $reviewers = User::where('role', 'reviewer')->paginate(10);
-
+            $reviewers = User::where('role', 'reviewer')
+                ->withCount(['verifiedAccounts','verifiedTasks','verifiedPerformance'])
+                ->paginate(10);
+//            ->get();
             if ($reviewers->isEmpty()) {
                 return $this->errorResponse('There are no reviewers.', Response::HTTP_NOT_FOUND);
             }
@@ -96,7 +98,9 @@ class ReviewerController extends Controller
     public function viewReviewer($id)
     {
         try {
-            $reviewer = User::where('role', 'reviewer')->findOrFail($id);
+            $reviewer = User::with('country:id,name,flag')->where('role', 'reviewer')
+                ->select('id','name','email','phone','country_id')
+                ->findOrFail($id);
 
             $totalVerified = User::where('verification_by', $id)->count();
             $totalVerifiedTask = Task::where('verified_by', $id)->count();

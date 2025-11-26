@@ -7,12 +7,14 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Withdrawal;
 use App\Notifications\UserNotification;
+use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Services\KorbaXchangeService;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class PaymentController extends Controller
 {
@@ -20,7 +22,7 @@ class PaymentController extends Controller
     {
        $data = $request->validate([
 //            'brand_id'       => 'required|exists:users,id',
-            'amount'         => 'required|numeric|min:1',
+//            'amount'         => 'required|numeric|min:1',
             'network_code'   => 'required|string',
             'customer_number'=> 'required|string',
 //            'customer_number'=> '0555804252',
@@ -43,7 +45,8 @@ class PaymentController extends Controller
             ];
 
             $response = $korba->collect($payload);
-            $user = Auth::user();
+            $user = JWTAuth::parseToken()->authenticate();
+
             Payment::create([
                 'user_id'         => Auth::id(),
                 'task_id'         => $request->task_id,
@@ -54,14 +57,6 @@ class PaymentController extends Controller
                 'customer_number' => $request->customer_number,
             ]);
 
-//            return response()->json([
-//                'status'  => true,
-//                'message' => 'Payment initiated successfully by Brand.',
-//                'data'    =>[
-//                    $response,
-//                    'trnxId'=> $transactionId
-//                ],
-//            ]);
 
             $title = 'Payment Initiated.';
             $body = 'We sent a prompt to your phone number ' .$request->customer_number. '. Please accept it. Your transaction id: ' . $transactionId;
@@ -74,11 +69,6 @@ class PaymentController extends Controller
             ],'Payment Initiated Successfully by Brand.',Response::HTTP_OK);
 
         } catch (\Exception $e) {
-//            return response()->json([
-//                'status'  => false,
-//                'message' => 'Payment request failed.',
-//                'error'   => $e->getMessage(),
-//            ], 500);
 
             return $this->errorResponse('Something went wrong, please try again later. ' .$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -96,15 +86,16 @@ class PaymentController extends Controller
             'bank_account_number'=>'sometimes|string',
             'bank_account_name'=>'sometimes|string',
         ]);
+        $user = JWTAuth::parseToken()->authenticate();
 //        dd(Auth::user()->balance);
-        if (Auth::user()->balance < $request->amount) {
+        if ($user->balance < $request->amount) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Insufficient Balance.',
             ], 400);
         }
 
-        if (Auth::user()->withdrawal_status == '0'){
+        if ($user->withdrawal_status == '0'){
             return $this->errorResponse("You don't have permission to withdraw.",Response::HTTP_FORBIDDEN);
         }
 
@@ -125,7 +116,7 @@ class PaymentController extends Controller
 //                  'callback_url'     => "https://webhook.site/1c4d4a5d?transaction_id={$transactionId}",
                     'description' => 'Payout to Task Performer',
                     'client_id' => 1358,
-                    'beneficiary_name' => Auth::user()->name,
+                    'beneficiary_name' => $user->name,
                     'bank_code'=>$request->bank_code,
                     'recipient_bank_name'=>$request->recipient_bank_name,
                     'bank_account_number'=>$request->bank_account_number,
@@ -141,7 +132,7 @@ class PaymentController extends Controller
 //                  'callback_url'     => "https://webhook.site/1c4d4a5d?transaction_id={$transactionId}",
                     'description' => 'Payout to Task Performer',
                     'client_id' => 1358,
-                    'beneficiary_name' => Auth::user()->name,
+                    'beneficiary_name' => $user->name,
                 ];
             }
 
@@ -162,22 +153,12 @@ class PaymentController extends Controller
             $body = 'Your payment request is in review. You will notify after sometime. Your transaction id: ' . $transactionId;
 
             Auth::user()->notify(new UserNotification($title, $body));
-//            return response()->json([
-//                'status'  => true,
-//                'message' => 'Withdrawal request sent successfully.',
-//                'data'    => [$response,'transactionId'=>$transactionId],
-//            ]);
 
             return $this->successResponse([
                 'response'=>$response,
                 'transactionId'=>$transactionId
             ], 'Withdrawal request sent successfully.', Response::HTTP_OK);
         } catch (\Exception $e) {
-//            return response()->json([
-//                'status'  => false,
-//                'message' => 'Failed to process payout.',
-//                'error'   => $e->getMessage(),
-//            ], 500);
 
             return $this->errorResponse('Failed to process payout. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -190,19 +171,62 @@ class PaymentController extends Controller
             $transactionId = $request->transaction_id;
             $status = strtolower($request->status ?? 'pending');
             $message = $request->message ?? null;
-//        dd($transactionId);
-            Payment::where('transaction_id', $transactionId)
+
+          $payment = Payment::where('transaction_id', $transactionId)
                 ->update([
                     'status' => $status,
                     'message' => $message,
                 ]);
 
-            // Update Withdrawal record if applicable
-            Withdrawal::where('trnx_id', $transactionId)
+            if ($status === 'paid') {
+                $user = User::find($payment->user_id);
+
+                if ($user && $user->referral_id) {
+                    // Check if this is the first completed payment
+                    $firstDeposit = Payment::where('user_id', $user->id)
+                            ->where('status', 'paid')
+                            ->count() === 1;
+
+                    if ($firstDeposit) {
+                        $referrer = User::find($user->referral_id);
+                        if ($referrer) {
+                            $bonus = $payment->amount * 0.10;
+                            $referrer->increment('balance', $bonus);
+
+                            // Notify referrer
+                            $title = 'Referral Bonus Received';
+                            $body = 'You received 10% bonus from ' . $user->name . "'s first deposit: " . $bonus;
+                            $referrer->notify(new UserNotification($title, $body));
+                        }
+                    }
+                }
+            }
+
+
+          $withdrawal = Withdrawal::where('trnx_id', $transactionId)
                 ->update([
                     'status' => $status,
                     'message' => $message
                 ]);
+
+            if ($withdrawal && $user && $user->referral_id) {
+                $firstWithdrawal = Withdrawal::where('user_id', $user->id)
+                        ->where('status', 'completed')
+                        ->count() === 1; // only this withdrawal
+
+                if ($firstWithdrawal) {
+                    $referrer = User::find($user->referral_id);
+                    if ($referrer) {
+                        $bonus = $withdrawal->amount * 0.05; // 5% bonus
+                        $referrer->increment('balance', $bonus);
+
+                        // Notify referrer
+                        $title = 'Referral Bonus Received';
+                        $body = 'You received 5% bonus from ' . $user->name . "'s first withdrawal: " . $bonus;
+                        $referrer->notify(new UserNotification($title, $body));
+                    }
+                }
+            }
 
 
             return $this->successResponse(null,'Payment successful.', Response::HTTP_OK);

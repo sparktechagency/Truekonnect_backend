@@ -77,4 +77,19 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(Countrie::class,'country_id');
     }
 
+    public function referral(){
+        return $this->belongsTo(User::class,'referral_id');
+    }
+
+    public function verifiedAccounts()
+    {
+        return $this->belongsTo(User::class, 'verification_by');
+    }
+    public function verifiedTasks(){
+        return $this->hasMany(Task::class, 'verified_by');
+    }
+    public function verifiedPerformance(){
+        return $this->hasMany(TaskPerformer::class, 'verified_by');
+    }
+
 }

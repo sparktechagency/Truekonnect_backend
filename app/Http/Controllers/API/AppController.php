@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Validator;
 
 class AppController extends Controller
 {
-    public function updateProfile(Request $request){
+    public function updateProfile(Request $request)
+    {
         try {
             $validator = Validator::make($request->all(), [
                 'name' => 'nullable|string|max:255',
@@ -63,7 +64,8 @@ class AppController extends Controller
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function switchProfile(){
+    public function switchProfile()
+    {
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
@@ -74,7 +76,7 @@ class AppController extends Controller
                 ], 401);
             }
 
-            // Toggle role
+
             if ($user->role === 'performer') {
                 $user->role = 'brand';
             } elseif ($user->role === 'brand') {
@@ -86,10 +88,8 @@ class AppController extends Controller
                 ], 400);
             }
 
-            // Save the updated role
             $user->save();
 
-            // Generate new JWT with updated role
             $newToken = JWTAuth::fromUser($user, ['role' => $user->role]);
 
             return $this->successResponse([
@@ -101,7 +101,8 @@ class AppController extends Controller
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function allSocialMedia(){
+    public function allSocialMedia()
+    {
         try {
             $user=JWTAuth::user();
             $socialMedia=SocialAccount::with('social:id,name,icon_url')
@@ -125,69 +126,67 @@ class AppController extends Controller
         }
     }
     public function verifiedRequest(Request $request, $id)
-{
-    try {
-        $validator = Validator::make($request->all(), [
-            'profile_name'  => 'required|string|max:255',
-            'note'          => 'nullable|string|max:500',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480', // optional, not forced
-        ]);
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'profile_name'  => 'required|string|max:255',
+                'note'          => 'nullable|string|max:500',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Validation failed.',
-                'errors'  => $validator->errors(),
-            ], 422);
-        }
-
-
-        $user = JWTAuth::parseToken()->authenticate();
-
-        $socialAccount = SocialAccount::where('user_id', $user->id)
-            ->where('sm_id', $id)
-            ->first();
-
-        if (!$socialAccount) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Social account not found.',
-            ], 404);
-        }
-
-
-        $socialAccount->profile_name = $request->profile_name;
-        $socialAccount->note = $request->note;
-        $socialAccount->status ='pending';
-
-
-
-        if ($request->hasFile('profile_image')) {
-            $file = $request->file('profile_image');
-            $extension = $file->getClientOriginalExtension();
-            $fileName = Str::slug($socialAccount->profile_name) . '-' . time() . '.' . $extension;
-
-            if ($socialAccount->profile_image && Storage::disk('public')->exists($socialAccount->profile_image)) {
-                Storage::disk('public')->delete($socialAccount->profile_image);
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Validation failed.',
+                    'errors'  => $validator->errors(),
+                ], 422);
             }
 
-            $filePath = $file->storeAs('social_profiles', $fileName, 'public');
-            $socialAccount->profile_image = $filePath;
+            $user = JWTAuth::parseToken()->authenticate();
+
+            $socialAccount = SocialAccount::where('user_id', $user->id)
+                ->where('sm_id', $id)
+                ->first();
+
+            if (!$socialAccount) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Social account not found.',
+                ], 404);
+            }
+
+            $socialAccount->profile_name = $request->profile_name;
+            $socialAccount->note = $request->note;
+            $socialAccount->status ='pending';
+
+
+
+            if ($request->hasFile('profile_image')) {
+                $file = $request->file('profile_image');
+                $extension = $file->getClientOriginalExtension();
+                $fileName = Str::slug($socialAccount->profile_name) . '-' . time() . '.' . $extension;
+
+                if ($socialAccount->profile_image && Storage::disk('public')->exists($socialAccount->profile_image)) {
+                    Storage::disk('public')->delete($socialAccount->profile_image);
+                }
+
+                $filePath = $file->storeAs('social_profiles', $fileName, 'public');
+                $socialAccount->profile_image = $filePath;
+            }
+
+            $socialAccount->save();
+
+            return $this->successResponse($socialAccount,'Social account updated successfully.', Response::HTTP_OK);
+
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return $this->errorResponse('Token expired.', Response::HTTP_UNAUTHORIZED);
+
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return $this->errorResponse('Token is invalid.', Response::HTTP_FORBIDDEN);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $socialAccount->save();
-
-        return $this->successResponse($socialAccount,'Social account updated successfully.', Response::HTTP_OK);
-
-    } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-        return $this->errorResponse('Token expired.', Response::HTTP_UNAUTHORIZED);
-
-    } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-        return $this->errorResponse('Token is invalid.', Response::HTTP_FORBIDDEN);
-
-    } catch (\Exception $e) {
-        return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
     }
-}
 
 }
