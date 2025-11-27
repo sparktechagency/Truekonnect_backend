@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Models\TaskPerformer;
 use App\Notifications\UserNotification;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 use App\Models\Task;
 use App\Models\User;
@@ -72,6 +73,7 @@ class WithdrawalController extends Controller
     }
     public function tokenConvert(Request $request)
     {
+        DB::beginTransaction();
         try {
             $request->validate([
                 'token' => 'required|numeric|min:1'
@@ -99,6 +101,8 @@ class WithdrawalController extends Controller
 
             $info->notify(new UserNotification($title, $body));
 
+            DB::commit();
+
             return $this->successResponse([
                 'balance' => $info->balance,
                 'earn_token' => $info->earn_token,
@@ -107,10 +111,13 @@ class WithdrawalController extends Controller
                 ], 'Tokens converted successfully.',Response::HTTP_OK);
 
         } catch (TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token has expired. Please log in again.'.$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong while fetching wallet info.'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

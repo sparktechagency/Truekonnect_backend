@@ -8,7 +8,7 @@ class TaskPerformer extends Model
 {
         protected $fillable=['user_id','task_id','token_earned','status','verified_by','rejection_reason'];
 
-        public function  task(){
+        public function task(){
                 return $this->belongsTo(Task::class,'task_id');
         }
         public function country(){

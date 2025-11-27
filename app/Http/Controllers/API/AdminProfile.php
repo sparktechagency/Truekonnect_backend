@@ -42,7 +42,6 @@ class AdminProfile extends Controller
             }
 
             $user->update($data);
-
             return $this->successResponse($user, 'Profile updated successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {

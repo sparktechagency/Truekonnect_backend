@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Models\SocialMedia;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -57,6 +58,7 @@ class SocialMediaController extends Controller
     }
     public function editPlatform(Request $request, $id)
     {
+        DB::beginTransaction();
         try {
             $platform = SocialMedia::find($id);
             if (!$platform) {
@@ -91,15 +93,18 @@ class SocialMediaController extends Controller
 
             $platform->save();
 
+            DB::commit();
+
             return $this->successResponse($platform, 'Social media updated!',Response::HTTP_OK);
 
-
         } catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function deletePlatform($id)
     {
+        DB::beginTransaction();
         try {
             $platform = SocialMedia::find($id);
             if (!$platform) {
@@ -112,9 +117,12 @@ class SocialMediaController extends Controller
 
             $platform->delete();
 
+            DB::commit();
+
             return $this->successResponse(null, 'Social media deleted!',Response::HTTP_OK);
 
         } catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

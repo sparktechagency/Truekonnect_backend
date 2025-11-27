@@ -15,6 +15,7 @@ use App\Models\TaskPerformer;
 use App\Models\SocialMediaService;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -24,7 +25,8 @@ class TaskController extends Controller
 {
     //App For Brand
     public function createTask(Request $request){
-            try {
+        DB::beginTransaction();
+        try {
             $validator = Validator::make($request->all(), [
                 'sm_id'       => 'required|integer|exists:social_media,id',
                 'country_id'  => 'required|integer|exists:countries,id',
@@ -73,14 +75,14 @@ class TaskController extends Controller
             foreach ($allUser as $users) {
                 $users->notify(new UserNotification($title, $body));
             }
-
-
-
+            DB::commit();
             return $this->successResponse($task, 'Task created successfully', Response::HTTP_CREATED);
 
         } catch (QueryException $e) {
+            DB::rollback();
             return $this->errorResponse('Database error while creating task.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -120,6 +122,7 @@ class TaskController extends Controller
         }
     }
     public function editTask(Request $request, $id){
+        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'description' => 'nullable|string',
@@ -148,12 +151,16 @@ class TaskController extends Controller
                 $task->status = 'pending';
                 $task->save();
             }
+
+            DB::commit();
             return $this->successResponse($task, $updated ? 'Task information updated successfully.': 'No changes were made.', Response::HTTP_OK);
 
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found.'.$e->getMessage(), Response::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong while updating the task.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -185,6 +192,7 @@ class TaskController extends Controller
         }
     }
     public function approveTask($id){
+        DB::beginTransaction();
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
@@ -208,36 +216,29 @@ class TaskController extends Controller
 
                 $task->creator->notify(new UserNotification($title, $body));
 
-//                return response()->json([
-//                    'status' => true,
-//                    'message' => 'Task verifyed successfully.',
-//                    'task' => $task,
-//                ], 200);
+                DB::commit();
 
                 return $this->successResponse($task, 'Task approved successfully.', Response::HTTP_OK);
             }
 
         } catch (ModelNotFoundException $e) {
-//            return response()->json([
-//                'status' => false,
-//                'message' => 'Task not found.',
-//            ], 404);
-
+            DB::rollback();
             return $this->errorResponse('Task not found.'.$e->getMessage(), Response::HTTP_NOT_FOUND);
-
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token has expired. Please log in again.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
-
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong while approving the task.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function rejectTask(Request $request, $id){
-
+        DB::beginTransaction();
         try {
-            // Validate input
+
             $validator = Validator::make($request->all(), [
                 'rejection_reason' => 'required|string|max:500'
             ]);
@@ -246,13 +247,10 @@ class TaskController extends Controller
                 return $this->errorResponse('Validation failed.'. $validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            // Authenticate user
             $user = JWTAuth::parseToken()->authenticate();
 
-            // Find the task
             $task = Task::findOrFail($id);
 
-            // Prevent double-processing
             if ($task->status === 'rejected') {
                 return $this->errorResponse('This task has already been rejected.',Response::HTTP_CONFLICT);
             }
@@ -261,7 +259,6 @@ class TaskController extends Controller
                 return $this->errorResponse('This task has already been verified.',Response::HTTP_CONFLICT);
             }
 
-            // Handle rejection
             if (in_array($task->status, ['pending', 'admin_review'])) {
                 $task->status = 'rejected';
                 $task->rejection_reason = $request->rejection_reason;
@@ -277,20 +274,26 @@ class TaskController extends Controller
                 return $this->successResponse($task, 'Task rejected successfully.', Response::HTTP_OK);
             }
 
+            DB::commit();
+
             return $this->errorResponse('Task cannot be rejected in its current state.', Response::HTTP_BAD_REQUEST);
 
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found.', Response::HTTP_NOT_FOUND);
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token expired. Please log in again.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong while rejecting the task.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function adminReview(Request $request, $id){
-
+        DB::beginTransaction();
         try {
             // Validate input
             $validator = Validator::make($request->all(), [
@@ -325,16 +328,24 @@ class TaskController extends Controller
 
                 $task->creator->notify(new UserNotification($title, $body));
 
+                DB::commit();
                 return $this->successResponse($task, 'Task assign for admin review successfully.', Response::HTTP_OK);
             }
 
+            DB::rollback();
+            return $this->errorResponse('Task status cannot be processed', Response::HTTP_INTERNAL_SERVER_ERROR);
+
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Task not found.', Response::HTTP_NOT_FOUND);
+            DB::rollback();
+            return $this->errorResponse('Task not found.' .$e->getMessage(), Response::HTTP_NOT_FOUND);
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token has expired. Please log in again.'.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong while admin review the task.'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -359,6 +370,7 @@ class TaskController extends Controller
         }
     }
     public function ptapproved($id){
+        DB::beginTransaction();
         try {
             $user = JWTAuth::parseToken()->authenticate();
             $task = TaskPerformer::findOrFail($id);
@@ -381,21 +393,27 @@ class TaskController extends Controller
                 $body = $performer->name. ', your task is completed. You earned '.$task->token_earned.' tokens.';
 
                 $performer->notify(new UserNotification($title, $body));
-
+                DB::commit();
                 return $this->successResponse($performer, 'Task approved successfully.', Response::HTTP_OK);
             }
-
+            DB::rollback();
+            return $this->errorResponse('Task status cannot be processed', Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found. ' .$e->getMessage(), Response::HTTP_NOT_FOUND);
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token expired. Please log in again.'.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Invalid or missing token.'.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function ptrejectTask(Request $request,$id){
+        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'rejection_reason' => 'required|string|max:500'
@@ -429,21 +447,29 @@ class TaskController extends Controller
 
                     $performer->notify(new UserNotification($title, $body));
                 }
+                DB::commit();
                 return $this->successResponse($performer, 'Task rejected successfully.', Response::HTTP_OK);
             }
+            DB::rollback();
+            return $this->errorResponse('Task status cannot be processed', Response::HTTP_INTERNAL_SERVER_ERROR);
 
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found. ' .$e->getMessage(), Response::HTTP_NOT_FOUND);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token expired. Please log in again.'.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Invalid or missing token.'.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function ptadminReview(Request $request,$id){
+        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'rejection_reason' => 'required|string|max:500'
@@ -476,19 +502,26 @@ class TaskController extends Controller
 
                     $performer->notify(new UserNotification($title, $body));
                 }
+                DB::commit();
                 return $this->successResponse($performer, 'Task moved to admin', Response::HTTP_OK);
             }
+            DB::rollback();
+            return $this->errorResponse('Task status cannot be processed', Response::HTTP_INTERNAL_SERVER_ERROR);
 
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found. ' .$e->getMessage(), Response::HTTP_NOT_FOUND);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token expired. Please log in again.'.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Invalid or missing token.'.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong'.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -539,7 +572,10 @@ class TaskController extends Controller
                 return $this->successResponse(null, 'No available task for your country yet', Response::HTTP_OK);
             }
 
-            return $this->successResponse($tasks, 'All tasks fetched successfully.', Response::HTTP_OK);
+            return $this->successResponse([
+                'username'=>$user->name,
+                'tasks'=>$tasks
+            ], 'All tasks fetched successfully.', Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
             return $this->errorResponse('Token expired. Please log in again.'.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
@@ -551,6 +587,7 @@ class TaskController extends Controller
     }
     public function saveTask(Request $request)
     {
+        DB::beginTransaction();
         try {
 
             $validator = Validator::make($request->all(), [
@@ -581,9 +618,12 @@ class TaskController extends Controller
                 'task_id' => $request->task_id,
             ]);
 
+            DB::commit();
+
             return $this->successResponse($saveTask, 'Task saved successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -592,7 +632,7 @@ class TaskController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'task_id'        => 'required|integer|exists:tasks,id',
-                'task_attached'  => 'required|max:5|min:1',
+                'task_attached'  => 'required|array|min:1|max:5',
                 'task_attached.*'=> 'file|mimetypes:image/jpeg,image/jpg,image/png,image/webp|max:20480',
             ]);
 
@@ -603,17 +643,19 @@ class TaskController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
             $task = Task::findOrFail($request->task_id);
 
+            if ($task->quantity == $task->performed) {
+                return $this->errorResponse("Task was completed. You can't perform it", Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
             $alreadySubmitted = TaskPerformer::where('user_id', $user->id)
                 ->where('task_id', $request->task_id)
                 ->exists();
 
             if ($alreadySubmitted) {
-                return $this->errorResponse('This task already exists.', Response::HTTP_CONFLICT);
+                return $this->errorResponse('This task already submitted.', Response::HTTP_CONFLICT);
             }
 
-            $taskUpdate = Task::where('id',$request->task_id)->increment('performed',1);
-            $taskDistribution = Task::where('id',$request->task_id)->increment('token_distributed', $task->per_perform);
-
+            DB::beginTransaction();
 
             $performer = TaskPerformer::create([
                 'user_id'      => $user->id,
@@ -621,6 +663,9 @@ class TaskController extends Controller
                 'token_earned' => $task->per_perform,
                 'status'       => 'pending',
             ]);
+
+            $taskUpdate = Task::where('id',$request->task_id)->increment('performed',1);
+            $taskDistribution = Task::where('id',$request->task_id)->increment('token_distributed', $task->per_perform);
 
 
             $uploadedFiles = [];
@@ -634,6 +679,15 @@ class TaskController extends Controller
                 ]);
             }
 
+            $task->refresh();
+
+            if ($task->quantity == $task->performed) {
+                $task->status = 'completed';
+                $task->save();
+            }
+
+
+
 //            if (count($uploadedFiles) === 0) {
 //                $performer->delete();
 //                return $this->errorResponse('At least one image must be uploaded.', Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -645,11 +699,13 @@ class TaskController extends Controller
 
                 $creator->notify(new UserNotification($title, $body));
             }
+            DB::commit();
             return $this->successResponse([
                 'performer'=>$performer,
                 'files'=>$uploadedFiles
             ], 'Task submitted successfully.', Response::HTTP_OK);
         } catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -708,6 +764,7 @@ class TaskController extends Controller
         }
     }
     public function adminApproveTask($id){
+        DB::beginTransaction();
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
@@ -727,23 +784,32 @@ class TaskController extends Controller
 
                 $task->creator->notify(new UserNotification($title, $body));
 
+                DB::commit();
+
                 return $this->successResponse($task, 'Task approved successfully.', Response::HTTP_OK);
             }
+            DB::rollback();
+            return $this->errorResponse('This task is already approved.', Response::HTTP_INTERNAL_SERVER_ERROR);
 
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found.', Response::HTTP_NOT_FOUND);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token expired.', Response::HTTP_FORBIDDEN);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Token Invalid.', Response::HTTP_UNAUTHORIZED);
 
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function adminRejectedTask(Request $request, $id){
+        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'rejection_reason' => 'required|string|max:500'
@@ -779,21 +845,28 @@ class TaskController extends Controller
 
                 $task->creator->notify(new UserNotification($title, $body));
 
+                DB::commit();
+
                 return $this->successResponse($task, 'Task rejected successfully.', Response::HTTP_OK);
             }
 
+            DB::rollback();
             return $this->errorResponse('This task is already rejected.', Response::HTTP_FORBIDDEN);
 
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found. '.$e->getMessage(), Response::HTTP_NOT_FOUND);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token expired. '.$e->getMessage(), Response::HTTP_FORBIDDEN);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Token Invalid. '.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
 
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -818,6 +891,7 @@ class TaskController extends Controller
         }
     }
     public function adminApprovedSPerformTask($id){
+        DB::beginTransaction();
         try {
             $user = JWTAuth::parseToken()->authenticate();
             $task = TaskPerformer::findOrFail($id);
@@ -840,23 +914,32 @@ class TaskController extends Controller
                 $body = 'Congratulations! Your performed task, '.$task->engagement->engagement_name.' has been approved. You earned '.$task->token_earned.' token.';
 
                 $performer->notify(new UserNotification($title, $body));
+
+                DB::commit();
                 return $this->successResponse($performer, 'Task approved successfully.', Response::HTTP_OK);
             }
+            DB::rollback();
+            return $this->errorResponse('This task is already approved.', Response::HTTP_FORBIDDEN);
 
         } catch (ModelNotFoundException $e) {
+            DB::rollback();
             return $this->errorResponse('Task not found. '.$e->getMessage(), Response::HTTP_NOT_FOUND);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            DB::rollback();
             return $this->errorResponse('Token expired. '.$e->getMessage(), Response::HTTP_FORBIDDEN);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollback();
             return $this->errorResponse('Token Invalid. '.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
 
         } catch (\Throwable $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function adminRejectedSPerformTask(Request $request, $id){
+        DB::beginTransaction();
          try {
             $validator = Validator::make($request->all(), [
                 'rejection_reason' => 'required|string|max:500'
@@ -888,19 +971,28 @@ class TaskController extends Controller
                 $body = 'Sorry! Your performed task, '.$task->engagement->engagement_name.' has been rejected.';
 
                 $performer->notify(new UserNotification($title, $body));
+
+                DB::commit();
                 return $this->successResponse($task, 'Task rejected successfully.', Response::HTTP_OK);
             }
 
+            DB::rollback();
+            return $this->errorResponse('This task is already rejected.', Response::HTTP_FORBIDDEN);
+
         } catch (ModelNotFoundException $e) {
+             DB::rollback();
              return $this->errorResponse('Task not found. '.$e->getMessage(), Response::HTTP_NOT_FOUND);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+             DB::rollback();
              return $this->errorResponse('Token expired. '.$e->getMessage(), Response::HTTP_FORBIDDEN);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+             DB::rollback();
              return $this->errorResponse('Token Invalid. '.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
 
         } catch (\Throwable $e) {
+             DB::rollback();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -937,7 +1029,6 @@ class TaskController extends Controller
                 return $this->errorResponse('Task not found.', Response::HTTP_NOT_FOUND);
             }
             $task = Task::with(['reviewer:id,name,email,phone,country_id','reviewer.country:id,name','country:id,name,flag'])->where('tasks.id', $taskId)
-//
                 ->first();
 
             $isCompleted = ($task->quantity == $task->performed);

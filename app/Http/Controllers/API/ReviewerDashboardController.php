@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use App\Models\SocialAccount;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
@@ -50,6 +51,7 @@ class ReviewerDashboardController extends Controller
 
     public function VerifySocialAccount(Request $request, $socialId)
     {
+        DB::beginTransaction();
         try {
             // Validate request data
 //            $validator = Validator::make($request->all(), [
@@ -92,23 +94,29 @@ class ReviewerDashboardController extends Controller
 
             $user->notify(new UserNotification($title, $body));
 
+            DB::commit();
+
             return $this->successResponse([
                 'social_account' => $sa,
                 'user' => $user],'Social account verified successfully.',Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollBack();
             return $this->errorResponse('Token error. '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
             return $this->errorResponse('Record not found. '.$e->getMessage(),Response::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function rejectSocialAccount(Request $request,$socialId)
     {
+        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
 //                'id'                => 'required|exists:social_accounts,id',
@@ -146,15 +154,20 @@ class ReviewerDashboardController extends Controller
 
             $user->notify(new UserNotification($title, $body));
 
+            DB::commit();
+
             return $this->successResponse(['social_account' => $sa, 'user' => $user],'Social account rejected.',Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
+            DB::rollBack();
             return $this->errorResponse('Token error. '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
             return $this->errorResponse('Record not found. '.$e->getMessage(),Response::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

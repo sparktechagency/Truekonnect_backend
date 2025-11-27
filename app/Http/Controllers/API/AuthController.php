@@ -9,6 +9,7 @@ use App\Models\SocialMedia;
 use App\Models\Withdrawal;
 use App\Services\KorbaXchangeService;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -31,6 +32,7 @@ class AuthController extends Controller
 {
     public function signUp(Request $request, KorbaXchangeService $korba){
         try {
+            DB::beginTransaction();
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users,email',
@@ -42,15 +44,11 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'status' => false,
-                    'error_type' => 'Validation errors',
-                    'errors' => $validator->errors(),
-                ], 422);
+                return $this->errorResponse('Validation Error '.$validator->errors(), Response::HTTP_BAD_REQUEST);
             }
 
             do {
-                $referralCode = strtoupper(substr($request->name, 0, 3)) . random_int(100000, 999999);
+                $referralCode = strtoupper(substr($request->name, 0, 3)) . random_int(100, 999);
             } while (User::where('referral_code', $referralCode)->exists());
 
             $otp = rand(100000, 999999);
@@ -99,13 +97,17 @@ class AuthController extends Controller
                     $user->save();
                 }
             }
+            $referralUrl = url('/ref/' . $user->referral_code);
+            DB::commit();
 
             return $this->successResponse([
                 'user' => $user,
+                'referralUrl' => $referralUrl,
                 'otp send' => $otpSend,
             ], 'User Successfully Register', Response::HTTP_CREATED);
         }
         catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -154,13 +156,15 @@ class AuthController extends Controller
 
         $user = JWTAuth::user();
 
-        return $this->successResponse(['user' => $user, 'token' => $token], 'User Successfully Login', Response::HTTP_OK);
+        return $this->successResponse(['token' => $token,'user' => $user], 'User Successfully Login', Response::HTTP_OK);
     }
 
     public function myProfile()
     {
         try {
             $user =JWTAuth::parseToken()->authenticate();
+
+            $referralCode = url('/ref/' . $user->referral_code);
 
             $payment = Payment::with('user:id,name,email,avatar')
                 ->whereHas('user', fn($q) => $q->where('referral_id', Auth::id()))
@@ -177,7 +181,7 @@ class AuthController extends Controller
                 ->unique('user_id');
 
 
-            return $this->successResponse(['user'=>$user->only(['avatar', 'name', 'email', 'phone']),'creator'=>$payment,'performer'=>$referralsWithdrawals], 'User Successfully Login', Response::HTTP_OK);
+            return $this->successResponse(['user'=>$user->only(['avatar', 'name', 'email', 'phone','referral_code']),'referral_link'=>$referralCode,'creator'=>$payment,'performer'=>$referralsWithdrawals], 'User Successfully Login', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -185,6 +189,7 @@ class AuthController extends Controller
 
     public function forgetPasswordOTPSend(Request $request, KorbaXchangeService $korba)
     {
+        DB::beginTransaction();
         $validator = Validator::make($request->all(), [
             'login' => 'required|string|max:255',
         ]);
@@ -232,12 +237,14 @@ class AuthController extends Controller
                         ->subject('Your OTP Code');
                 });
             }
+            DB::commit();
 
             return $this->successResponse([
                 'otp'=>$otp,'otp send'=>$otpSend,'user'=>$login
             ], 'OTP Send Successfully', Response::HTTP_OK);
 
         } catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -309,7 +316,7 @@ class AuthController extends Controller
 
         $user = User::where('phone', $request->phone)
             ->where('otp', $request->otp)
-            ->where('otp_expires_at', '>=', now()) // be consistent with your column name
+            ->where('otp_expires_at', '>=', now())
             ->first();
 
         if (!$user) {
@@ -325,72 +332,90 @@ class AuthController extends Controller
 
     public function resendPhoneOTP(Request $request, KorbaXchangeService $korba)
     {
-        $validator = Validator::make($request->all(), [
-            'phone' => 'required|string|max:255|exists:users,phone',
-        ]);
+        DB::beginTransaction();
+        try {
+            $validator = Validator::make($request->all(), [
+                'phone' => 'required|string|max:255|exists:users,phone',
+            ]);
 
-        if ($validator->fails()) {
-            return $this->errorResponse('Something went wrong. ' .$validator->errors(), 400);
+            if ($validator->fails()) {
+                return $this->errorResponse('Something went wrong. ' . $validator->errors(), 400);
+            }
+            $otp = rand(100000, 999999);
+            $otpExpiry = Carbon::now()->addMinutes(10);
+
+            $payload = [
+                'client_id' => env('KORBA_CLIENT_ID'),
+                'phone_number' => '+233' . $request->phone,
+                'code' => $otp,
+                'platform' => env('APP_NAME') . 'OTP Expire at ' . $otpExpiry,
+            ];
+            $otpSend = $korba->ussdOTP($payload);
+
+            $user = User::where('phone', $request->phone)->whereIn('role', ['brand', 'performer'])->first();
+
+            if (!$user) {
+                return $this->errorResponse('Phone number not found', Response::HTTP_NOT_FOUND);
+            }
+
+            $user->otp = $otp;
+            $user->otp_expires_at = Carbon::now()->addMinutes(10);
+            $user->save();
+
+            DB::commit();
+
+            return $this->successResponse([
+                'user' => $user,
+                'otp' => $otpSend,
+            ], 'OTP sent to your phone', Response::HTTP_OK);
         }
-        $otp = rand(100000, 999999);
-        $otpExpiry = Carbon::now()->addMinutes(10);
-
-        $payload = [
-            'client_id' => env('KORBA_CLIENT_ID'),
-            'phone_number' => '+233'.$request->phone,
-            'code' => $otp,
-            'platform'=> env('APP_NAME'). 'OTP Expire at '.$otpExpiry,
-        ];
-        $otpSend = $korba->ussdOTP($payload);
-
-        $user = User::where('phone',$request->phone)->whereIn('role',['brand','performer'])->first();
-
-        if (!$user) {
-            return $this->errorResponse('Phone number not found', Response::HTTP_NOT_FOUND);
+        catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $user->otp = $otp;
-        $user->otp_expires_at = Carbon::now()->addMinutes(10);
-        $user->save();
-
-
-        return $this->successResponse([
-            'user'=>$user,
-            'otp' => $otpSend,
-        ],'OTP sent to your phone', Response::HTTP_OK);
     }
 
     public function resendEmailOTP(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|string|max:255|exists:users,email',
-        ]);
+        DB::beginTransaction();
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|string|max:255|exists:users,email',
+            ]);
 
-        if ($validator->fails()) {
-            return $this->errorResponse('Something went wrong. ' .$validator->errors(), 400);
+            if ($validator->fails()) {
+                return $this->errorResponse('Something went wrong. ' . $validator->errors(), 400);
+            }
+            $otp = rand(100000, 999999);
+            $otpExpiry = Carbon::now()->addMinutes(10);
+
+            $user = User::where('email', $request->email)->whereIn('role', ['admin', 'reviewer'])->first();
+
+            if (!$user) {
+                return $this->errorResponse('Email not found', Response::HTTP_NOT_FOUND);
+            }
+
+            $user->otp = $otp;
+            $user->otp_expires_at = Carbon::now()->addMinutes(10);
+            $user->save();
+
+            Mail::raw("Your OTP is: $otp. It will expire at " . $otpExpiry->format('H:i:s'), function ($message) use ($user) {
+                $message->to($user->email)
+                    ->subject('Your OTP Code');
+            });
+
+            DB::commit();
+
+            return $this->successResponse($user, 'OTP sent to your email', Response::HTTP_OK);
         }
-        $otp = rand(100000, 999999);
-        $otpExpiry = Carbon::now()->addMinutes(10);
-
-        $user = User::where('email',$request->email)->whereIn('role',['admin','reviewer'])->first();
-
-        if (!$user) {
-            return $this->errorResponse('Email not found', Response::HTTP_NOT_FOUND);
+        catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $user->otp = $otp;
-        $user->otp_expires_at = Carbon::now()->addMinutes(10);
-        $user->save();
-
-        Mail::raw("Your OTP is: $otp. It will expire at " . $otpExpiry->format('H:i:s'), function ($message) use ($user) {
-            $message->to($user->email)
-                ->subject('Your OTP Code');
-        });
-
-        return $this->successResponse($user,'OTP sent to your email', Response::HTTP_OK);
     }
 
     public function otpVerify(Request $request){
+        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'email' => 'required|string|email|max:255|exists:users,email',
@@ -413,9 +438,11 @@ class AuthController extends Controller
             $user->otp_expires_at = null;
             $user->save();
 
+            DB::commit();
             return $this->successResponse(['email' => $request->email, 'user' => $user->id], 'User Successfully Verify OTP', Response::HTTP_OK);
         }
         catch (\Exception $e) {
+            DB::rollback();
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 

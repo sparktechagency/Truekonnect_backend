@@ -36,6 +36,7 @@ Route::get('/callback', [PaymentController::class, 'callbackURL'])->name('korba.
 
 Route::get('privacy/policy',[AdminProfile::class, 'privacyRetrive']);
 Route::get('terms/condition',[AdminProfile::class, 'termsRetrive']);
+Route::get('/ref/{referral_code}', [AppController::class,'getReferrer']);
 
 Route::prefix('notification')->controller(NotificationCenter::class)->group(function () {
     Route::get('center','getNotification');
@@ -49,7 +50,7 @@ Route::prefix('notification')->controller(NotificationCenter::class)->group(func
     Route::delete('deleteAllNotification','deleteAllNotifications');
 });
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
-    Route::post('signup', 'signUp');
+    Route::post('signup', 'signUp')->name('auth.signup');
     Route::post('signin', 'signIn');
     Route::post('otp/send', 'forgetPasswordOTPSend');
     Route::post('forgot-password', 'forgotPassword');
@@ -81,7 +82,12 @@ Route::prefix('app')->group(function () {
         Route::get('performer/leaderboard','performerLeaderboard');
     });
     Route::middleware(BrandMiddelware::class)->group(function () {
-        Route::controller(AppController::class)->group(function () {});
+        Route::controller(AppController::class)->group(function () {
+            Route::get('homepage','brandHomepage');
+            Route::get('order/complete','completedTasks');
+            Route::get('order/ongoing','ongoingTasks');
+            Route::get('order/details/{taskId}','orderDetails');
+        });
         Route::prefix('task')->controller(TaskController::class)->group(function () {
             Route::post('create','createTask');
             Route::get('all','myTask');
@@ -95,6 +101,7 @@ Route::prefix('app')->group(function () {
     Route::middleware(CommonBrandOrPerformerMiddleware::class)->group(function () {
         Route::controller(AuthController::class)->group(function () {
             Route::get('my/profile','myProfile');
+
         });
         Route::controller(AppController::class)->group(function(){
             Route::put('edit-profile', 'updateProfile');
@@ -154,12 +161,13 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
         Route::get('all-country', 'viewAllCountries');
         Route::put('edit-country/{id}', 'editCountry');
         Route::delete('delete-country/{id}', 'deleteCountry');
+
     });
     Route::prefix('social-media')->group(function () {
         Route::controller(SocialMediaController::class)->group(function(){
             Route::post('/add', 'addPlatform');
             Route::get('/all', 'viewAllPlatforms');
-            Route::PUT('/edit/{id}', 'editPlatform');
+            Route::put('/edit/{id}', 'editPlatform');
             Route::delete('/delete/{id}','deletePlatform');
         });
     });

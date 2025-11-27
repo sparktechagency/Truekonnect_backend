@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Services\KorbaXchangeService;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -30,7 +31,7 @@ class PaymentController extends Controller
         ]);
 
         $transactionId = 'PAY' . time() . rand(100, 999);
-
+        DB::beginTransaction();
         try {
             $payload = [
                 'customer_number' => $request->customer_number,
@@ -63,13 +64,14 @@ class PaymentController extends Controller
 
             $user->notify(new UserNotification($title, $body));
 
+            DB::commit();
             return $this->successResponse([
                 'response'=> $response,
                 'trnxId'=> $transactionId
             ],'Payment Initiated Successfully by Brand.',Response::HTTP_OK);
 
         } catch (\Exception $e) {
-
+            DB::rollback();
             return $this->errorResponse('Something went wrong, please try again later. ' .$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -105,6 +107,7 @@ class PaymentController extends Controller
 
         $transactionId = 'WD' . time() . rand(100, 999);
 
+        DB::beginTransaction();
         try {
             if ($request->network_code == 'ISP') {
                 $payload = [
@@ -153,13 +156,13 @@ class PaymentController extends Controller
             $body = 'Your payment request is in review. You will notify after sometime. Your transaction id: ' . $transactionId;
 
             Auth::user()->notify(new UserNotification($title, $body));
-
+            DB::commit();
             return $this->successResponse([
                 'response'=>$response,
                 'transactionId'=>$transactionId
             ], 'Withdrawal request sent successfully.', Response::HTTP_OK);
         } catch (\Exception $e) {
-
+            DB::rollback();
             return $this->errorResponse('Failed to process payout. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

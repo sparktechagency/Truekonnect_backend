@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\Payment;
 use App\Models\SocialMedia;
+use App\Models\Task;
+use App\Models\TaskPerformer;
+use App\Models\User;
+use App\Models\Withdrawal;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -14,6 +19,7 @@ use Illuminate\Support\Facades\Validator;
 
 class AppController extends Controller
 {
+
     public function updateProfile(Request $request)
     {
         try {
@@ -51,8 +57,8 @@ class AppController extends Controller
 
             $user->save();
 
-            // Optionally, return full URL for avatar
-            // $user->avatar_url = $user->avatar ? asset('storage/' . $user->avatar) : asset('storage/avatars/default_avatar.png');
+//             Optionally, return full URL for avatar
+//             $user->avatar_url = $user->avatar ? asset('storage/' . $user->avatar) : asset('storage/avatars/default_avatar.png');
 
             return response()->json([
                 'status' => true,
@@ -63,6 +69,117 @@ class AppController extends Controller
         catch (\Exception $e) {
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+    public function brandHomepage(Request $request)
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+
+            $complete = Task::where('user_id', $user->id)->whereColumn('quantity','=','performed')->count();
+            $ongoing = Task::where('user_id', $user->id)->whereColumn('quantity','>','performed')->count();
+            $recentTask = Task::with('social:id,name,icon_url')->where('user_id', $user->id)->whereColumn('quantity','>','performed')
+                ->get(['id','sm_id']);
+            $payment = Payment::with('user:id,name,email,avatar')
+                ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
+                ->where('status', 'completed')
+                ->orderBy('created_at')
+                ->distinct('user_id')
+                ->count('user_id');
+
+            $referralsWithdrawals = Withdrawal::with('user:id,name,email,avatar')
+                ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
+                ->where('status', 'completed')
+                ->orderBy('created_at')
+                ->distinct('user_id')
+                ->count('user_id');
+
+            $userPaid = $payment + $referralsWithdrawals;
+
+            $taskPerformerGotPaid = TaskPerformer::with(['performer:id,name,email,avatar','task:id,sm_id','task.social:id,name'])
+                ->where('status', 'completed')->whereHas('task', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })->get();
+
+            $totaltaskPerformerGotPaid = TaskPerformer::with(['performer:id,name,email,avatar','task:id,sm_id','task.social:id,name'])
+                ->where('status', 'completed')->whereHas('task', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })->count();
+
+            $totalTokenDistribution = Task::where('user_id',$user->id)->whereColumn('quantity','=','performed')->sum('token_distributed');
+            return $this->successResponse([
+                'user_name' => $user->name,
+                'complete' => $complete,
+                'ongoing' => $ongoing,
+                'total_users_paid' => $totaltaskPerformerGotPaid,
+                'recent_tasks' => $recentTask,
+                'totaltaskPerformerGotPaid' => $totaltaskPerformerGotPaid,
+                'taskPerformerGotPaid' => $taskPerformerGotPaid,
+                'totalTokenDistribution' => $totalTokenDistribution,
+            ],'Brand home page updated successfully.', Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function completedTasks(Request $request)
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+
+            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->whereColumn('quantity','=','performed')->
+            get(['id','sm_id','performed']);
+
+            return $this->successResponse([
+                'complete' => $completeOrders,
+            ],"Completed tasks", Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function ongoingTasks(Request $request)
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+
+            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->whereColumn('quantity','>','performed')->
+            get(['id','sm_id']);
+
+            return $this->successResponse([
+                'ongoing' => $completeOrders,
+            ],"Completed tasks", Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function orderDetails(Request $request,$taskId)
+    {
+       try{
+           $user = JWTAuth::parseToken()->authenticate();
+
+           $task = Task::with(['social:id,name,icon_url'])
+               ->where('id', $taskId)
+               ->first(['id','sm_id','total_token','token_distributed','description','link','performed','created_at','total_price','quantity']);
+
+           if ($task->quantity > 0) {
+               $progressPercentage = ($task->performed / $task->quantity) * 100;
+               $progressPercentage = round($progressPercentage);
+           } else {
+               $progressPercentage = 0;
+           }
+
+           $taskStatus = ($task->quantity == $task->performed)
+               ? 'completed'
+               : 'ongoing';
+
+           $task->status = $taskStatus;
+           $task->progress = $progressPercentage . '% complete';
+
+           return $this->successResponse($task,'Order details updated successfully.', Response::HTTP_OK);
+       } catch (\Exception $exception){
+           return $this->errorResponse($exception->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+       }
     }
     public function switchProfile()
     {
@@ -160,7 +277,6 @@ class AppController extends Controller
             $socialAccount->status ='pending';
 
 
-
             if ($request->hasFile('profile_image')) {
                 $file = $request->file('profile_image');
                 $extension = $file->getClientOriginalExtension();
@@ -187,6 +303,27 @@ class AppController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    public function getReferrer($referral_code)
+    {
+        $user = User::where('referral_code', $referral_code)->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid referral code.'
+            ], 404);
+        }
+
+        $signIn = route('auth.signup'.$referral_code);
+
+        return $this->successResponse([
+            'id' => $user->id,
+            'name' => $user->name,
+            'referral_code' => $user->referral_code,
+            'sign_in' => $signIn,
+        ],'Referral Code Found', Response::HTTP_OK);
     }
 
 }
