@@ -134,7 +134,7 @@ class AuthController extends Controller
 
         if (in_array($userQuery->role, ['performer', 'brand'])) {
             if (!$userQuery->phone_verified_at) {
-                return $this->errorResponse('Phone number not verified.', Response::HTTP_UNAUTHORIZED);
+                return $this->errorResponse('Phone number not verified.', Response::HTTP_UNPROCESSABLE_ENTITY);
             }
             $loginField = 'phone';
         } else {
@@ -153,7 +153,6 @@ class AuthController extends Controller
             return $this->errorResponse('Invalid credentials.', Response::HTTP_UNAUTHORIZED);
         }
 
-
         $user = JWTAuth::user();
 
         return $this->successResponse(['token' => $token,'user' => $user], 'User Successfully Login', Response::HTTP_OK);
@@ -167,14 +166,14 @@ class AuthController extends Controller
             $referralCode = url('/ref/' . $user->referral_code);
 
             $payment = Payment::with('user:id,name,email,avatar')
-                ->whereHas('user', fn($q) => $q->where('referral_id', Auth::id()))
+                ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
                 ->where('status', 'completed')
-                ->orderBy('created_at') // earliest first
+                ->orderBy('created_at')
                 ->get()
                 ->unique('user_id');
 
             $referralsWithdrawals = Withdrawal::with('user:id,name,email,avatar')
-                ->whereHas('user', fn($q) => $q->where('referral_id', Auth::id()))
+                ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
                 ->where('status', 'completed')
                 ->orderBy('created_at')
                 ->get()

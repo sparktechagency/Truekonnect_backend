@@ -29,30 +29,43 @@ class PaymentController extends Controller
 //            'customer_number'=> '0555804252',
             'task_id'        => 'required|exists:tasks,id',
         ]);
+        $user = JWTAuth::parseToken()->authenticate();
+        $transactionId = Payment::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count() + 1;
+        $transactionId = 'PAY-' . now()->format('myHis') . str_pad($transactionId, 4, '0', STR_PAD_LEFT);
 
-        $transactionId = 'PAY' . time() . rand(100, 999);
         DB::beginTransaction();
+        $info = Task::with(['social:id,name'])->where('id',$request->task_id)->first();
+        $extraInfo = [
+            'social_name' => $info->social->name,
+            'quantity' => $info->quantity,
+            'unit_price' => $info->unite_price
+        ];
+
         try {
             $payload = [
+//                'customer_number' => $user->phone,
                 'customer_number' => $request->customer_number,
-                'amount'          => $request->amount,
+                'amount'          => $info->total_price,
                 'transaction_id'  => $transactionId,
                 'client_id'       => 1358,
                 'network_code'    => $request->network_code,
-//                'callback_url'    =>"https://6c3ef2f08d3a.ngrok-free.app/webhook/75f9cdac-43b4-41c6-8b16-c72a421c9e52?token=9a3009fff5cbf31ac08041e42e756f2ad4bff14b",
-//                'callback_url'    => 'https://6c3ef2f08d3a.ngrok-free.app/webhook/',
                 'callback_url' => route('korba.callback'),
-                'description'     => 'Task Payment from Brand',
+                'description' => $extraInfo['social_name']
+                    . ' - Qty: ' . $extraInfo['quantity']
+                    . ' Price: ' . $extraInfo['unit_price'],
+                'payer_name' => $user->name,
+                'extra_info' => $extraInfo['social_name'],
+                'redirect_url' => route('korba.callback'),
             ];
-
+//            dd($payload);
             $response = $korba->collect($payload);
-            $user = JWTAuth::parseToken()->authenticate();
+
 
             Payment::create([
                 'user_id'         => Auth::id(),
                 'task_id'         => $request->task_id,
                 'transaction_id'  => $transactionId,
-                'amount'          => $request->amount,
+                'amount'          => $info->total_price,
                 'status'          => 'pending',
                 'network_code'    => $request->network_code,
                 'customer_number' => $request->customer_number,
@@ -96,28 +109,33 @@ class PaymentController extends Controller
                 'message' => 'Insufficient Balance.',
             ], 400);
         }
-
+        $userDetails = User::with(['country:id,currency_code'])->where('id',$user->id)->first();
         if ($user->withdrawal_status == '0'){
             return $this->errorResponse("You don't have permission to withdraw.",Response::HTTP_FORBIDDEN);
         }
 
-        if (!Task::where('user_id', Auth::id())->exists()) {
+        if (!Task::where('user_id', $user->id)->exists()) {
             return $this->errorResponse("Purchase at least one task by ".env('APP_NAME')." app & add that account at my profile section in link social account",Response::HTTP_FORBIDDEN);
         }
 
-        $transactionId = 'WD' . time() . rand(100, 999);
+        $transactionId = Withdrawal::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count() + 1;
+        $transactionId = 'WD-' . now()->format('myHis') . str_pad($transactionId, 4, '0', STR_PAD_LEFT);
 
         DB::beginTransaction();
+        $description = "Withdrawal amount {$request->amount} {$userDetails->country->currency_code} for {$user->name}. Transaction ID: {$transactionId}";
+//        dd($description);
         try {
             if ($request->network_code == 'ISP') {
                 $payload = [
                     'customer_number' => $request->customer_number,
+//                    'customer_number' => $user->phone,
                     'amount' => $request->amount,
                     'transaction_id' => $transactionId,
                     'network_code' => $request->network_code,
                     'callback_url' => route('korba.callback'),
 //                  'callback_url'     => "https://webhook.site/1c4d4a5d?transaction_id={$transactionId}",
-                    'description' => 'Payout to Task Performer',
+                    'description' => $description,
+                    'payer_name'=> $user->name,
                     'client_id' => 1358,
                     'beneficiary_name' => $user->name,
                     'bank_code'=>$request->bank_code,
@@ -133,7 +151,7 @@ class PaymentController extends Controller
                     'network_code' => $request->network_code,
                     'callback_url' => route('korba.callback'),
 //                  'callback_url'     => "https://webhook.site/1c4d4a5d?transaction_id={$transactionId}",
-                    'description' => 'Payout to Task Performer',
+                    'description' => $description,
                     'client_id' => 1358,
                     'beneficiary_name' => $user->name,
                 ];
@@ -185,7 +203,6 @@ class PaymentController extends Controller
                 $user = User::find($payment->user_id);
 
                 if ($user && $user->referral_id) {
-                    // Check if this is the first completed payment
                     $firstDeposit = Payment::where('user_id', $user->id)
                             ->where('status', 'paid')
                             ->count() === 1;
@@ -196,7 +213,6 @@ class PaymentController extends Controller
                             $bonus = $payment->amount * 0.10;
                             $referrer->increment('balance', $bonus);
 
-                            // Notify referrer
                             $title = 'Referral Bonus Received';
                             $body = 'You received 10% bonus from ' . $user->name . "'s first deposit: " . $bonus;
                             $referrer->notify(new UserNotification($title, $body));
@@ -215,12 +231,12 @@ class PaymentController extends Controller
             if ($withdrawal && $user && $user->referral_id) {
                 $firstWithdrawal = Withdrawal::where('user_id', $user->id)
                         ->where('status', 'completed')
-                        ->count() === 1; // only this withdrawal
+                        ->count() === 1;
 
                 if ($firstWithdrawal) {
                     $referrer = User::find($user->referral_id);
                     if ($referrer) {
-                        $bonus = $withdrawal->amount * 0.05; // 5% bonus
+                        $bonus = $withdrawal->amount * 0.05;
                         $referrer->increment('balance', $bonus);
 
                         // Notify referrer
@@ -245,7 +261,7 @@ class PaymentController extends Controller
             'client_id' => env('KORBA_CLIENT_ID'),
         ];
 
-        // HMAC signature for authentication
+
         $sortedKeys = collect($payload)->keys()->sort()->toArray();
         $message = collect($sortedKeys)->map(fn($k) => "$k={$payload[$k]}")->implode('&');
         $signature = hash_hmac('sha256', $message, env('KORBA_SECRET_KEY'));
@@ -263,7 +279,7 @@ class PaymentController extends Controller
             throw new \Exception('Failed to fetch collection network list: ' . $response->body());
         }
 
-        return $response->json();
+        return $this->successResponse($response->json(), 'Collection network list.', Response::HTTP_OK);
     }
 
     public function bankLookup()
@@ -272,7 +288,6 @@ class PaymentController extends Controller
             'client_id' => env('KORBA_CLIENT_ID'),
         ];
 
-        // HMAC signature for authentication
         $sortedKeys = collect($payload)->keys()->sort()->toArray();
         $message = collect($sortedKeys)->map(fn($k) => "$k={$payload[$k]}")->implode('&');
         $signature = hash_hmac('sha256', $message, env('KORBA_SECRET_KEY'));
@@ -305,7 +320,6 @@ class PaymentController extends Controller
             'bank_code' => $data['bank_code'],
         ];
 
-        // HMAC signature for authentication
         $sortedKeys = collect($payload)->keys()->sort()->toArray();
         $message = collect($sortedKeys)->map(fn($k) => "$k={$payload[$k]}")->implode('&');
         $signature = hash_hmac('sha256', $message, env('KORBA_SECRET_KEY'));

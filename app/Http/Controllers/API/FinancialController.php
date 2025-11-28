@@ -7,6 +7,7 @@ use App\Models\TaskPerformer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Tymon\JWTAuth\Exceptions\JWTException;
 
 class FinancialController extends Controller
@@ -51,6 +52,7 @@ class FinancialController extends Controller
 
     public function updateFinancial(Request $request, $taskPerformer_id)
     {
+        DB::beginTransaction();
         try {
             $tp = TaskPerformer::where('id', $taskPerformer_id)->first();
 
@@ -61,13 +63,16 @@ class FinancialController extends Controller
             $data['verified_by'] = Auth::id();
 
             $tp->update($data);
+            DB::commit();
 
             return $this->successResponse($tp, 'Status updated successfully', Response::HTTP_OK);
         }
         catch (JWTException $e){
+            DB::rollback();
             return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
         catch (\Exception $e){
+            DB::rollback();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

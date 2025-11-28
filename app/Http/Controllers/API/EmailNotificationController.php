@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\UserNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -16,6 +17,7 @@ class EmailNotificationController extends Controller
 {
     public function bulkEmail(Request $request)
     {
+        DB::beginTransaction();
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
@@ -34,16 +36,19 @@ class EmailNotificationController extends Controller
                         ->subject($data['subject']);
                 });
             }
+            DB::commit();
 
             return $this->successResponse($email, 'Email sent successfully', Response::HTTP_CREATED);
         }
         catch (\Exception $e){
+            DB::rollback();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function bulkNotification(Request $request)
     {
+        DB::beginTransaction();
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
@@ -62,9 +67,12 @@ class EmailNotificationController extends Controller
                 ));
             }
 
+            DB::commit();
+
             return $this->successResponse($email, 'Notification sent successfully', Response::HTTP_CREATED);
         }
         catch (\Exception $e){
+            DB::rollback();
             return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

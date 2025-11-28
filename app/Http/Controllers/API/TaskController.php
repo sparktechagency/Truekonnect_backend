@@ -54,7 +54,7 @@ class TaskController extends Controller
             $user=JWTAuth::user();
 
             $allUser = User::where('id','!=',$user->id)->get();
-            // Create the task
+
             $task = Task::create([
                 'sm_id'             => $request->sm_id,
                 'sms_id'            => $request->sms_id,
@@ -295,7 +295,7 @@ class TaskController extends Controller
     public function adminReview(Request $request, $id){
         DB::beginTransaction();
         try {
-            // Validate input
+
             $validator = Validator::make($request->all(), [
                 'note' => 'required|string|max:500'
             ]);
@@ -304,18 +304,18 @@ class TaskController extends Controller
                 return $this->errorResponse('Validation failed.'. $validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            // Authenticate user
+
             $user = JWTAuth::parseToken()->authenticate();
 
-            // Find the task
+
             $task = Task::findOrFail($id);
 
-            // Prevent double-processing
+
             if ($task->status === 'admin_review'||$task->status === 'verifyed'||$task->status === 'completed') {
                 return $this->errorResponse('This task has already been '.$task->status,Response::HTTP_CONFLICT);
             }
 
-            // Handle rejection
+
             if (in_array($task->status, ['pending', 'rejected'])) {
                 $task->status = 'admin_review';
                 $task->note = $request->note;
@@ -541,7 +541,6 @@ class TaskController extends Controller
                 return $this->errorResponse('User country not found', Response::HTTP_NOT_FOUND);
             }
 
-           // $perPage = $request->query('per_page', 10);
             $perPage =10;
             $tasks = Task::with([
                     'country:id,name,flag',
@@ -685,8 +684,6 @@ class TaskController extends Controller
                 $task->status = 'completed';
                 $task->save();
             }
-
-
 
 //            if (count($uploadedFiles) === 0) {
 //                $performer->delete();
@@ -946,7 +943,7 @@ class TaskController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation failed.'.$validator->errors(), Response::HTTP_INTERNAL_SERVER_ERROR);
+                return $this->errorResponse('Validation failed. '.$validator->errors(), Response::HTTP_INTERNAL_SERVER_ERROR);
             }
             $user = JWTAuth::parseToken()->authenticate();
 

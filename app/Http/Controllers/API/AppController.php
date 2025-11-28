@@ -57,9 +57,6 @@ class AppController extends Controller
 
             $user->save();
 
-//             Optionally, return full URL for avatar
-//             $user->avatar_url = $user->avatar ? asset('storage/' . $user->avatar) : asset('storage/avatars/default_avatar.png');
-
             return response()->json([
                 'status' => true,
                 'message' => 'Profile updated successfully.',
@@ -159,7 +156,7 @@ class AppController extends Controller
            $user = JWTAuth::parseToken()->authenticate();
 
            $task = Task::with(['social:id,name,icon_url'])
-               ->where('id', $taskId)
+               ->where('id', $taskId)->where('user_id',$user->id)
                ->first(['id','sm_id','total_token','token_distributed','description','link','performed','created_at','total_price','quantity']);
 
            if ($task->quantity > 0) {
@@ -199,10 +196,7 @@ class AppController extends Controller
             } elseif ($user->role === 'brand') {
                 $user->role = 'performer';
             } else {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Switching role not supported for this user type.',
-                ], 400);
+                return $this->errorResponse('Switching is not for this user.', Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
             $user->save();
@@ -252,11 +246,7 @@ class AppController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Validation failed.',
-                    'errors'  => $validator->errors(),
-                ], 422);
+                return $this->errorResponse('Validation Error. '.$validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $user = JWTAuth::parseToken()->authenticate();
@@ -266,10 +256,7 @@ class AppController extends Controller
                 ->first();
 
             if (!$socialAccount) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Social account not found.',
-                ], 404);
+                return $this->errorResponse('Social account not found.', Response::HTTP_NOT_FOUND);
             }
 
             $socialAccount->profile_name = $request->profile_name;
@@ -310,10 +297,7 @@ class AppController extends Controller
         $user = User::where('referral_code', $referral_code)->first();
 
         if (!$user) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Invalid referral code.'
-            ], 404);
+            return $this->errorResponse('Referral code not found.', Response::HTTP_NOT_FOUND);
         }
 
         $signIn = route('auth.signup'.$referral_code);

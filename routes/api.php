@@ -81,12 +81,19 @@ Route::prefix('app')->group(function () {
     Route::controller(UserLeaderboard::class)->group(function () {
         Route::get('performer/leaderboard','performerLeaderboard');
     });
+    Route::controller(PaymentController::class)->group(function () {
+        Route::post('/performer-payment', 'PayoutToPerformer');
+    });
     Route::middleware(BrandMiddelware::class)->group(function () {
         Route::controller(AppController::class)->group(function () {
             Route::get('homepage','brandHomepage');
             Route::get('order/complete','completedTasks');
             Route::get('order/ongoing','ongoingTasks');
             Route::get('order/details/{taskId}','orderDetails');
+        });
+
+        Route::controller(PaymentController::class)->group(function () {
+            Route::post('/brand-payment', 'GetPaymentFromBrand');
         });
         Route::prefix('task')->controller(TaskController::class)->group(function () {
             Route::post('create','createTask');
@@ -113,8 +120,6 @@ Route::prefix('app')->group(function () {
             Route::post('openticket','newticket');
         });
         Route::controller(PaymentController::class)->group(function() {
-            Route::post('/brand-payment', 'GetPaymentFromBrand');
-            Route::post('/performer-payment', 'PayoutToPerformer');
 //            Route::get('/callback', 'callbackURL')->name('korba.callback');
             Route::get('/networks', 'getCollectionNetworks');
             Route::get('/available/banks', 'bankLookup');
