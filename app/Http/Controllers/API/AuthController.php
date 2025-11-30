@@ -113,19 +113,19 @@ class AuthController extends Controller
     }
     public function signIn(Request $request){
         $validator = Validator::make($request->all(), [
-            'login'    => 'required|string|max:255',
+            'email'    => 'required|string|max:255',
             'password' => 'required|string|min:8',
+            'type' => 'required|string|in:email,phone',
         ]);
 
         if ($validator->fails()) {
             return $this->errorResponse('Validation errors'.$validator->errors(), Response::HTTP_BAD_REQUEST);
         }
 
-        $login = $request->login;
+        $login = $request->email;
         $password = $request->password;
 
-        $userQuery = User::where('email', $login)
-            ->orWhere('phone', $login)
+        $userQuery = User::where($request->type, $login)
             ->first();
 
         if (!$userQuery) {
