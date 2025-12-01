@@ -16,7 +16,7 @@ class FinancialController extends Controller
     {
         try {
             $finance = TaskPerformer::with([
-                'performer:id,name,email,phone',
+                'performer:id,name,email,phone,avatar',
                 'task:id,country_id,sms_id,total_price',
                 'task.engagement:id,engagement_name',
                 'task.country:id,name,flag'
@@ -24,7 +24,7 @@ class FinancialController extends Controller
                 ->paginate('10');
 
             $completed = TaskPerformer::with([
-                'performer:id,name,email,phone',
+                'performer:id,name,email,phone,avatar',
                 'task:id,country_id,sms_id,total_price',
                 'task.engagement:id,engagement_name',
                 'task.country:id,name,flag'
@@ -32,7 +32,7 @@ class FinancialController extends Controller
                 ->paginate('10');
 
             $blocked = TaskPerformer::with([
-                'performer:id,name,email,phone',
+                'performer:id,name,email,phone,avatar',
                 'task:id,country_id,sms_id,total_price',
                 'task.engagement:id,engagement_name',
                 'task.country:id,name,flag'
