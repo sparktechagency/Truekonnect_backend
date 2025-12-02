@@ -15,10 +15,10 @@ class SupportTicket extends Model
     'admin_reason'
 ];
 
-public function ticketcreator(){
-    return $this->belongsTo(User::class,'user_id');
-}
-public function reviewer(){
-    return $this->belongsTo(User::class,'reviewed_by');
-}
+    public function ticketcreator(){
+        return $this->belongsTo(User::class,'user_id');
+    }
+    public function reviewer(){
+        return $this->belongsTo(User::class,'reviewed_by');
+    }
 }

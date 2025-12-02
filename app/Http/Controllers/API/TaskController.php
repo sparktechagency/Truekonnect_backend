@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Countrie;
@@ -735,6 +736,8 @@ class TaskController extends Controller
     public function adminSupportTask(Request $request){
          $perPage = $request->query('per_page', 10);
         try {
+
+            $data = $request->validate([]);
             $tasks = Task::with([
                 'country:id,name,flag',
                 'social:id,name,icon_url',
@@ -754,7 +757,22 @@ class TaskController extends Controller
                 'note',
                 'created_at'
             ]);
-            return $this->successResponse($tasks, 'Tasks retrieved successfully.', Response::HTTP_OK);
+            $tasksPerform = TaskPerformer::with([
+                'task.engagement:id,engagement_name',
+                'performer:id,name,email,phone,avatar',
+                'reviewer:id,name,email,phone,avatar',
+                'taskAttached:id,tp_id,file_url',
+                'task:id,sms_id,country_id',
+                'task.country:id,name,flag',
+            ])
+                ->where('status', 'admin_review')
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+
+            $ticketSupport = SupportTicket::with(['ticketcreator:id,name,email,phone,avatar,country_id','ticketcreator.country:id,name,flag'])->get();
+
+
+            return $this->successResponse(['task'=>$tasks, 'task perform'=> $tasksPerform, 'ticket support'=> $ticketSupport], 'Tasks retrieved successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to fetch tasks '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);

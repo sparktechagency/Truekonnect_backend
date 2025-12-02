@@ -221,6 +221,7 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
 
     Route::prefix('finance')->controller(FinancialController::class)->group(function(){
         Route::get('allList', 'financialList');
+        Route::post('search', 'searchUser');
         Route::post('update/{taskPerformer_id}', 'updateFinancial');
     });
 
