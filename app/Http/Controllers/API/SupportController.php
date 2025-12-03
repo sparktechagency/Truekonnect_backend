@@ -24,7 +24,7 @@ class SupportController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return $this->errorResponse('User Not Found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User Not Found',null,Response::HTTP_NOT_FOUND);
             }
 
             $validated = $request->validate([
@@ -63,10 +63,10 @@ class SupportController extends Controller
            return $this->errorResponse('Invalid Token',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (ValidationException $e) {
            DB::rollback();
-           return $this->errorResponse('Validation Failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
+           return $this->errorResponse('Validation Failed',$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
            DB::rollback();
-           return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+           return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function allPendingTickets()
@@ -83,9 +83,9 @@ class SupportController extends Controller
             return $this->successResponse($tickets,'Pending tickets found.',Response::HTTP_OK);
 
         } catch (JWTException $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function answerTicket(Request $request, $id)
@@ -95,7 +95,7 @@ class SupportController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return $this->errorResponse('User not found  ',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found  ',null,Response::HTTP_NOT_FOUND);
             }
 
             $validated = $request->validate([
@@ -106,15 +106,15 @@ class SupportController extends Controller
             $ticket = SupportTicket::find($id);
             $customer = User::find($validated['user_id']);
             if (!$ticket) {
-                return $this->errorResponse('Ticket not found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Ticket not found',null,Response::HTTP_NOT_FOUND);
             }
             if (!$customer) {
-                return $this->errorResponse('Customer not found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Customer not found',null,Response::HTTP_NOT_FOUND);
             }
             if ($ticket->status=='answered') {
-                return $this->errorResponse('Ticket already answered',Response::HTTP_CONFLICT);
+                return $this->errorResponse('Ticket already answered',null,Response::HTTP_CONFLICT);
             }elseif ($ticket->status=='admin_review') {
-                return $this->errorResponse('Ticket already move to admin review',Response::HTTP_CONFLICT);
+                return $this->errorResponse('Ticket already move to admin review',null,Response::HTTP_CONFLICT);
             }
 //            else{
                 $reply=$validated['reply'];
@@ -136,13 +136,13 @@ class SupportController extends Controller
 
         } catch (JWTException $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
         } catch (ValidationException $e) {
             DB::rollBack();
-            return $this->errorResponse('Validation Failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->errorResponse('Validation Failed',$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function moveToAdmin(Request $request, $ticket_id)
@@ -152,7 +152,7 @@ class SupportController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return $this->errorResponse('User not found  ',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found  ',null,Response::HTTP_NOT_FOUND);
             }
 
             // Validate reason
@@ -162,12 +162,12 @@ class SupportController extends Controller
 
             $ticket = SupportTicket::find($ticket_id);
             if (!$ticket) {
-                return $this->errorResponse('Ticket not found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Ticket not found',null,Response::HTTP_NOT_FOUND);
             }
             if ($ticket->status=='answered') {
-                return $this->errorResponse('Ticket already answered',Response::HTTP_CONFLICT);
+                return $this->errorResponse('Ticket already answered',null,Response::HTTP_CONFLICT);
             }elseif ($ticket->status=='admin_review') {
-                return $this->errorResponse('Ticket already move to admin review',Response::HTTP_CONFLICT);
+                return $this->errorResponse('Ticket already move to admin review',null,Response::HTTP_CONFLICT);
             }
 //            else{
                 $ticket->status = 'admin_review';
@@ -186,37 +186,36 @@ class SupportController extends Controller
 
         } catch (JWTException $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (ValidationException $e) {
             DB::rollBack();
-            return $this->errorResponse('Validation Failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->errorResponse('Validation Failed',$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
 
         } catch (Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    public function allAdminReviewTickets()
+    public function allAdminReviewTickets($id)
     {
         try {
             // Fetch all pending tickets (you can filter by user if needed)
-            $tickets = SupportTicket::with(['ticketcreator:id,name,email,phone,avatar,role','reviewer:id,name,email,phone,avatar,role'])->where('status', 'admin_review')
-                ->orderBy('created_at', 'desc')
-                ->paginate(10);
+            $tickets = SupportTicket::
+            with(['ticketcreator:*', 'reviewer:*'])
+                ->where('status', 'admin_review')
+                ->find($id);
 
-            if ($tickets->isEmpty()) {
-                return $this->successResponse(null,'Ticket not found',Response::HTTP_OK);
-            }
+//
 
             return $this->successResponse($tickets,'Ticket Reviewed',Response::HTTP_OK);
 
         } catch (JWTException $e) {
-            return $this->errorResponse('Invalid expired token '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Invalid expired token ',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
      public function adminAnswerTicket(Request $request, $id)
@@ -226,7 +225,7 @@ class SupportController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return $this->errorResponse('User not found  ',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found  ',null,Response::HTTP_NOT_FOUND);
             }
 
             $validated = $request->validate([
@@ -235,14 +234,14 @@ class SupportController extends Controller
 
             $ticket = SupportTicket::find($id);
             if (!$ticket) {
-                return $this->errorResponse('Ticket not found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Ticket not found',null,Response::HTTP_NOT_FOUND);
             }
             $customer = User::find($ticket->user_id);
             if (!$customer) {
-                return $this->errorResponse('User not found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found',null,Response::HTTP_NOT_FOUND);
             }
             if ($ticket->status=='answered') {
-                return $this->errorResponse('Ticket already answered',Response::HTTP_CONFLICT);
+                return $this->errorResponse('Ticket already answered',null,Response::HTTP_CONFLICT);
             }
 //            elseif ($ticket->status=='admin_review') {
 
@@ -266,15 +265,15 @@ class SupportController extends Controller
 
         } catch (JWTException $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (ValidationException $e) {
             DB::rollBack();
-            return $this->errorResponse('Validation failed'.$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->errorResponse('Validation failed',$e->getMessage(),Response::HTTP_UNPROCESSABLE_ENTITY);
 
         } catch (Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

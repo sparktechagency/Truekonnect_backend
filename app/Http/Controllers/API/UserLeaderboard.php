@@ -58,7 +58,7 @@ class UserLeaderboard extends Controller
 
             return $this->successResponse($rankedData, 'Leaderboard', Response::HTTP_OK);
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -115,7 +115,7 @@ class UserLeaderboard extends Controller
 
             return $this->successResponse($rankedData, 'Leaderboard', Response::HTTP_OK);
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

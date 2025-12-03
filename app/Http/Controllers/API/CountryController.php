@@ -30,7 +30,7 @@ class CountryController extends Controller
     //             return response()->json([
     //                 'status'  => false,
     //                 'message' => 'Validation failed.',
-    //                 'errors'  => $validator->errors()
+    //                 'errors'  => $validator->errors()->first()
     //             ], 422);
     //         }
 
@@ -83,7 +83,7 @@ class CountryController extends Controller
             // ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation error. '. $validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(), $validator->errors()->first(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             // Upload flag
@@ -107,7 +107,7 @@ class CountryController extends Controller
             return $this->successResponse($country, 'Successfully signed out.', Response::HTTP_CREATED);
 
         } catch (\Throwable $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -119,7 +119,7 @@ class CountryController extends Controller
            return $this->successResponse($countries, 'Country list retrieved successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function editCountry(Request $request, $id)
@@ -127,7 +127,7 @@ class CountryController extends Controller
         try {
             $country = Countrie::find($id);
             if (!$country) {
-                return $this->errorResponse('Country not found.', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Country not found.',null, Response::HTTP_NOT_FOUND);
             }
 
             $validator = Validator::make($request->all(), [
@@ -139,7 +139,7 @@ class CountryController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation error. '. $validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(), $validator->errors()->first(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             if ($request->hasFile('flag')) {
@@ -170,7 +170,7 @@ class CountryController extends Controller
             return $this->successResponse($country, 'Country updated successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function deleteCountry($id)
@@ -178,7 +178,7 @@ class CountryController extends Controller
         try {
             $country = Countrie::find($id);
             if (!$country) {
-                return $this->errorResponse('Country not found.', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Country not found.', null,Response::HTTP_NOT_FOUND);
             }
 
             $country->delete();
@@ -186,7 +186,7 @@ class CountryController extends Controller
             return $this->successResponse(null, 'Country deleted successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

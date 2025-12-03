@@ -36,10 +36,10 @@ class UserManagementController extends Controller
             ->paginate(10);
             return $this->successResponse(['active users'=>$userActive,'user banned'=>$userBanned],'All users retrieved successfully',Response::HTTP_OK);
         } catch (TokenExpiredException $exception){
-            return $this->errorResponse('Token expired. '.$exception->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token expired. ',$exception->getMessage(), Response::HTTP_BAD_REQUEST);
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -49,7 +49,7 @@ class UserManagementController extends Controller
             $userList = User::with('country:id,flag')->find($userId);
 
             if(!$userList){
-                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found',null, Response::HTTP_NOT_FOUND);
             }
             $referredUser = User::with('country:id,flag')->where('referral_id', $userId)->get();
             $totalWithdrawal = Withdrawal::where('user_id', $userId)->where('status', 'success')->sum('amount');
@@ -96,7 +96,7 @@ class UserManagementController extends Controller
                 'Brand Details' => $brandDetails,
             ], 'User retrieved successfully', Response::HTTP_OK);
         }catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -129,7 +129,7 @@ class UserManagementController extends Controller
             return $this->successResponse([$user], 'User status updated successfully', Response::HTTP_OK);
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -143,7 +143,7 @@ class UserManagementController extends Controller
             $user = User::find($userId);
 
             if (!$user) {
-                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found',null, Response::HTTP_NOT_FOUND);
             }
 
             $user->earn_token += $data['earn_token'];
@@ -174,7 +174,7 @@ class UserManagementController extends Controller
             return $this->successResponse([$user], 'Token generated successfully', Response::HTTP_OK);
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

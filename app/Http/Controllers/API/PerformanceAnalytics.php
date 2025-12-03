@@ -80,7 +80,7 @@ class PerformanceAnalytics extends Controller
         return $this->successResponse($response, 'Performance Details', Response::HTTP_OK);
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ' ,$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

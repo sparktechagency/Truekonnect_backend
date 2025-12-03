@@ -26,15 +26,15 @@ class AdminMiddelware
             $user = JWTAuth::parseToken()->authenticate();
             // User found & role check
             if (!$user || $user->role !== 'admin') {
-                return $this->errorResponse('Unauthorized. Admin access required.', Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse('Unauthorized. Admin access required.',null, Response::HTTP_BAD_REQUEST);
             }
 
         } catch (TokenExpiredException $e) {
-            return $this->errorResponse('Token has expired. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token has expired. ',$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (TokenInvalidException $e) {
-            return $this->errorResponse('Token is invalid. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token is invalid. ',$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (JWTException $e) {
-            return $this->errorResponse('Authorization token not found. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Authorization token not found. ',$e->getMessage(), Response::HTTP_BAD_REQUEST);
         }
         return $next($request);
     }

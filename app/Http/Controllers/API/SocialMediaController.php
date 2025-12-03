@@ -23,7 +23,7 @@ class SocialMediaController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation Error.'. $validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $iconPath = null;
@@ -41,7 +41,7 @@ class SocialMediaController extends Controller
             return $this->successResponse($platform, 'Social media added!',Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function viewAllPlatforms()
@@ -53,7 +53,7 @@ class SocialMediaController extends Controller
 
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function editPlatform(Request $request, $id)
@@ -62,7 +62,7 @@ class SocialMediaController extends Controller
         try {
             $platform = SocialMedia::find($id);
             if (!$platform) {
-                return $this->errorResponse('Social media not found!', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Social media not found!', null,Response::HTTP_NOT_FOUND);
             }
 
             $validator = Validator::make($request->all(), [
@@ -71,7 +71,7 @@ class SocialMediaController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation Error.'. $validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(), $validator->errors()->first(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             // If updating icon, delete old one first
@@ -99,7 +99,7 @@ class SocialMediaController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function deletePlatform($id)
@@ -108,7 +108,7 @@ class SocialMediaController extends Controller
         try {
             $platform = SocialMedia::find($id);
             if (!$platform) {
-                return $this->errorResponse('Social media not found!', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Social media not found!',null, Response::HTTP_NOT_FOUND);
             }
 
             if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
@@ -123,7 +123,7 @@ class SocialMediaController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

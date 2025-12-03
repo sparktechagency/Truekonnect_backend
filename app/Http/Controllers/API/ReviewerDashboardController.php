@@ -24,7 +24,7 @@ class ReviewerDashboardController extends Controller
                 ->paginate(10,['id', 'user_id', 'sm_id', 'profile_name','note', 'profile_image', 'status']);
             return $this->successResponse($sc,'All Verification Request',Response::HTTP_OK);
         }catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
     }
@@ -34,7 +34,7 @@ class ReviewerDashboardController extends Controller
             $check = SocialAccount::find($id);
 
             if(!$check){
-                return $this->errorResponse('Social Account not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Social Account not found',null, Response::HTTP_NOT_FOUND);
             }
 
             $sc=SocialAccount::with(['user:id,name,avatar,withdrawal_status','social:id,name,icon_url'])
@@ -44,7 +44,7 @@ class ReviewerDashboardController extends Controller
             return $this->successResponse($sc,'Data retrieved successfully', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong' ,$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
     }
@@ -64,7 +64,7 @@ class ReviewerDashboardController extends Controller
 //                return response()->json([
 //                    'status' => false,
 //                    'message' => 'Validation failed.',
-//                    'errors' => $validator->errors(),
+//                    'errors' => $validator->errors()->first(),
 //                ], 422);
 //            }
 
@@ -75,7 +75,7 @@ class ReviewerDashboardController extends Controller
             $sa = SocialAccount::findOrFail($socialId);
 
             if (!$sa){
-                return $this->errorResponse('Social Account not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Social Account not found', null,Response::HTTP_NOT_FOUND);
             }
 
             $sa->status = 'verified';
@@ -102,15 +102,15 @@ class ReviewerDashboardController extends Controller
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
             DB::rollBack();
-            return $this->errorResponse('Token error. '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token error. ',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::rollBack();
-            return $this->errorResponse('Record not found. '.$e->getMessage(),Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Record not found. ',$e->getMessage(),Response::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -128,8 +128,8 @@ class ReviewerDashboardController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Validation failed.',
-                    'errors' => $validator->errors(),
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors()->first(),
                 ], 422);
             }
 
@@ -160,15 +160,15 @@ class ReviewerDashboardController extends Controller
 
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
             DB::rollBack();
-            return $this->errorResponse('Token error. '.$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token error. ',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::rollBack();
-            return $this->errorResponse('Record not found. '.$e->getMessage(),Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Record not found. ',$e->getMessage(),Response::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -218,7 +218,7 @@ class ReviewerDashboardController extends Controller
             ],'Dashboard History',Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

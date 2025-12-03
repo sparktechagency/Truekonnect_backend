@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -45,7 +46,7 @@ class AdminProfile extends Controller
             return $this->successResponse($user, 'Profile updated successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -56,12 +57,12 @@ class AdminProfile extends Controller
                 'policy' => 'required',
             ]);
 
-            $privacy = PrivacyPolicy::create($data);
+            $privacy = PrivacyPolicy::updateOrCreate(['id'=>1],$data);
 
             return $this->successResponse($privacy, 'Privacy policy updated successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -72,7 +73,7 @@ class AdminProfile extends Controller
             return $this->successResponse($privacy, 'Privacy policy retrieved.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -94,7 +95,7 @@ class AdminProfile extends Controller
             return $this->successResponse($privacy, 'Privacy policy updated successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -105,12 +106,12 @@ class AdminProfile extends Controller
                 'terms_conditions' => 'required',
             ]);
 
-            $privacy = TermCondition::create($data);
+            $privacy = TermCondition::updateOrCreate(['id'=>1],$data);
 
             return $this->successResponse($privacy, 'Terms and Condition updated successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -121,7 +122,7 @@ class AdminProfile extends Controller
             return $this->successResponse($privacy, 'Terms and Condition retrieved.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Soething went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Soething went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -143,7 +144,7 @@ class AdminProfile extends Controller
             return $this->successResponse($privacy, 'Terms and Condition updated successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -155,18 +156,27 @@ class AdminProfile extends Controller
             return $this->successResponse($admin, 'Admin list.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function addAdmin(Request $request){
         try {
-            $data = $request->validate([
-                'name' => 'required',
-                'email' => 'required',
-                'password' => 'required|min:8|confirmed',
+           $validator = Validator::make($request->all(), [
+                'name'     => 'required|string',
+                'email'    => 'required|email|unique:users,email',
+                'password' => 'required|string|min:8|confirmed',
             ]);
 
+            if ($validator->fails()) {
+                return $this->errorResponse(
+                    $validator->errors()->first(),
+                    $validator->errors()->first(),
+                    Response::HTTP_UNPROCESSABLE_ENTITY
+                );
+            }
+
+            $data = $validator->validated();
             $data['password'] = Hash::make($data['password']);
             $data['role'] = 'admin';
 
@@ -188,7 +198,7 @@ class AdminProfile extends Controller
             return $this->successResponse($user, 'Admin added successfully.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

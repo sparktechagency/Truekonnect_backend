@@ -85,7 +85,7 @@ class PaymentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong, please try again later. ' .$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong, please try again later. ' ,$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function PayoutToPerformer(KorbaXchangeService $korba, Request $request)
@@ -111,11 +111,11 @@ class PaymentController extends Controller
         }
         $userDetails = User::with(['country:id,currency_code'])->where('id',$user->id)->first();
         if ($user->withdrawal_status == '0'){
-            return $this->errorResponse("You don't have permission to withdraw.",Response::HTTP_FORBIDDEN);
+            return $this->errorResponse("You don't have permission to withdraw.",null,Response::HTTP_FORBIDDEN);
         }
 
         if (!Task::where('user_id', $user->id)->exists()) {
-            return $this->errorResponse("Purchase at least one task by ".env('APP_NAME')." app & add that account at my profile section in link social account",Response::HTTP_FORBIDDEN);
+            return $this->errorResponse("Purchase at least one task by ".env('APP_NAME')." app & add that account at my profile section in link social account",null,Response::HTTP_FORBIDDEN);
         }
 
         $transactionId = Withdrawal::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count() + 1;
@@ -181,7 +181,7 @@ class PaymentController extends Controller
             ], 'Withdrawal request sent successfully.', Response::HTTP_OK);
         } catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Failed to process payout. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Failed to process payout. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -251,7 +251,7 @@ class PaymentController extends Controller
             return $this->successResponse(null,'Payment successful.', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ' ,$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

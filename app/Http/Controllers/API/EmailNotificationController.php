@@ -42,7 +42,7 @@ class EmailNotificationController extends Controller
         }
         catch (\Exception $e){
             DB::rollback();
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -73,7 +73,7 @@ class EmailNotificationController extends Controller
         }
         catch (\Exception $e){
             DB::rollback();
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

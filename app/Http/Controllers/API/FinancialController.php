@@ -110,7 +110,7 @@ class FinancialController extends Controller
 
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ' ,$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -127,7 +127,7 @@ class FinancialController extends Controller
 
             return $this->successResponse(['search' => $data['search'], 'user'=>$search, 'count'=>$search->count()], 'Search List', Response::HTTP_OK);
         }catch (\Exception $e){
-            return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function updateFinancial(Request $request, $taskPerformer_id)
@@ -149,11 +149,11 @@ class FinancialController extends Controller
         }
         catch (JWTException $e){
             DB::rollback();
-            return $this->errorResponse('Something went wrong. ' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ' ,$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
         catch (\Exception $e){
             DB::rollback();
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

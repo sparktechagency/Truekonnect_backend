@@ -43,7 +43,7 @@ class AdminDashboard extends Controller
                 'monthlyrevenue' => $weeklyRevenuePerDay,
             ],'Dashboard Information',Response::HTTP_OK);
         }catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

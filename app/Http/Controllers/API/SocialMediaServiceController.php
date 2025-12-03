@@ -23,7 +23,7 @@ class SocialMediaServiceController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation failed'.$validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $engagement = SocialMediaService::create([
@@ -38,7 +38,7 @@ class SocialMediaServiceController extends Controller
             return $this->successResponse($engagement,'Engagement service added successfully.',Response::HTTP_CREATED);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -53,7 +53,7 @@ class SocialMediaServiceController extends Controller
             return $this->successResponse($engagements,'Engagements viewed successfully.',Response::HTTP_CREATED);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -63,7 +63,7 @@ class SocialMediaServiceController extends Controller
         try {
             $engagement = SocialMediaService::find($id);
             if (!$engagement) {
-                return $this->errorResponse('Engagement not found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Engagement not found',null,Response::HTTP_NOT_FOUND);
             }
 
             $validator = Validator::make($request->all(), [
@@ -74,7 +74,7 @@ class SocialMediaServiceController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation failed '.$validator->errors(),Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(),Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $engagement->update($request->only([
@@ -89,7 +89,7 @@ class SocialMediaServiceController extends Controller
 
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function deleteEngagement($id)
@@ -97,7 +97,7 @@ class SocialMediaServiceController extends Controller
         try {
             $engagement = SocialMediaService::find($id);
             if (!$engagement) {
-                return $this->errorResponse('Engagement not found',Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Engagement not found',null,Response::HTTP_NOT_FOUND);
             }
 
             $engagement->delete();
@@ -105,7 +105,7 @@ class SocialMediaServiceController extends Controller
             return $this->successResponse(null,'Engagement deleted successfully.',Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

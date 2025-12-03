@@ -37,14 +37,14 @@ class AuthController extends Controller
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users,email',
                 'phone' => 'required|string|max:255|unique:users,phone',
-                'country_id' => 'required|exists:countries,id',
+                'country_id' => 'required|exists:countries,dial_code',
                 'referral_code' => 'nullable|string|max:255|exists:users,referral_code',
                 'role' => 'required|in:performer,brand',
                 'password' => 'required|string|min:8|confirmed',
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation Error '.$validator->errors(), Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse('Validation Error '.$validator->errors()->first(),$validator->errors()->first(), Response::HTTP_BAD_REQUEST);
             }
 
             do {
@@ -55,10 +55,10 @@ class AuthController extends Controller
             $otpExpiry = Carbon::now()->addMinutes(10);
 
             if (in_array($request->role, ['performer', 'brand'])) {
-                $country = Countrie::where('id', $request->country_id);
+
                 $payload = [
                     'client_id' => env('KORBA_CLIENT_ID'),
-                    'phone_number' => $country->dial_code . $request->phone,
+                    'phone_number' => $request->country_id . $request->phone,
                     'code' => $otp,
                     'platform' => env('APP_NAME') . '. OTP Expire at ' . $otpExpiry,
                 ];
@@ -70,11 +70,13 @@ class AuthController extends Controller
                 });
             }
 
+            $country = Countrie::where('dial_code', $request->country_id)->first();
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone' => $request->phone,
-                'country_id' => $request->country_id,
+                'country_id' => $country->id,
                 'role' => $request->role,
                 'otp' => $otp,
                 'otp_expires_at' => $otpExpiry,
@@ -108,7 +110,7 @@ class AuthController extends Controller
         }
         catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function signIn(Request $request){
@@ -116,30 +118,38 @@ class AuthController extends Controller
             'email'    => 'required|string|max:255',
             'password' => 'required|string|min:8',
             'type' => 'required|string|in:email,phone',
+            'role' => 'nullable|string|in:performer,brand,reviewer,admin'
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse('Validation errors'.$validator->errors(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), Response::HTTP_BAD_REQUEST);
         }
 
         $login = $request->email;
         $password = $request->password;
 
-        $userQuery = User::where($request->type, $login)
-            ->first();
+        $role = $request->role ?? null;
 
+        $userQuery = User::where($request->type, $login)->first();
+
+        if ($role && $userQuery->role !== $role) {
+            return $this->errorResponse(
+                null,"You registered as '{$userQuery->role}'. You cannot sign in as '$role'.",
+                403
+            );
+        }
         if (!$userQuery) {
-            return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
+            return $this->errorResponse(null,'User not found.', Response::HTTP_NOT_FOUND);
         }
 
         if (in_array($userQuery->role, ['performer', 'brand'])) {
             if (!$userQuery->phone_verified_at) {
-                return $this->errorResponse('Phone number not verified.', Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse('Phone number not verified.',null, Response::HTTP_UNPROCESSABLE_ENTITY);
             }
             $loginField = 'phone';
         } else {
             if (!$userQuery->email_verified_at) {
-                return $this->errorResponse('Email not verified.', Response::HTTP_UNAUTHORIZED);
+                return $this->errorResponse('Email not verified.',null, Response::HTTP_UNAUTHORIZED);
             }
             $loginField = 'email';
         }
@@ -150,7 +160,7 @@ class AuthController extends Controller
         ];
 
         if (!$token = JWTAuth::attempt($credentials)) {
-            return $this->errorResponse('Invalid credentials.', Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Invalid credentials.',null, Response::HTTP_UNAUTHORIZED);
         }
 
         $user = JWTAuth::user();
@@ -182,7 +192,7 @@ class AuthController extends Controller
 
             return $this->successResponse(['user'=>$user->only(['avatar', 'name', 'email', 'phone','referral_code']),'referral_link'=>$referralCode,'creator'=>$payment,'performer'=>$referralsWithdrawals], 'User Successfully Login', Response::HTTP_OK);
         }catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -194,7 +204,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse('Validation errors'.$validator->errors(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), Response::HTTP_BAD_REQUEST);
         }
 
         $login = $request->login;
@@ -204,7 +214,7 @@ class AuthController extends Controller
             ->first();
 
         if (!$user) {
-            return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('User not found',null, Response::HTTP_NOT_FOUND);
         }
 
         $otp = random_int(100000, 999999);
@@ -218,7 +228,7 @@ class AuthController extends Controller
             if (in_array($user->role, ['performer', 'brand'])) {
                 $country = Countrie::find($user->country_id);
                 if (!$country) {
-                    return $this->errorResponse('Country not found.', Response::HTTP_NOT_FOUND);
+                    return $this->errorResponse('Country not found.',null, Response::HTTP_NOT_FOUND);
                 }
 
                 $payload = [
@@ -244,7 +254,7 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -265,7 +275,7 @@ class AuthController extends Controller
             return $this->successResponse(['user'=>$user], 'OTP Verify Successfully', Response::HTTP_OK);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function forgotPassword(Request $request, KorbaXchangeService $korba)
@@ -278,7 +288,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse('Validation errors'.$validator->errors(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(),Response::HTTP_BAD_REQUEST);
         }
 
         $login = $request->login;
@@ -289,7 +299,7 @@ class AuthController extends Controller
             ->first();
 
         if (!$user) {
-            return $this->errorResponse('User not found.', Response::HTTP_NOT_FOUND);
+            return $this->errorResponse(null,'User not found.', Response::HTTP_NOT_FOUND);
         }
 
         $user->password = Hash::make($request->password);
@@ -300,7 +310,7 @@ class AuthController extends Controller
         return $this->successResponse($user, 'User Successfully Forgot Password', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse($e->getMessage(),'Something went wrong.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function otpPhoneVerify(Request $request){
@@ -310,7 +320,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse('Validation errors'.$validator->errors(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), Response::HTTP_BAD_REQUEST);
         }
 
         $user = User::where('phone', $request->phone)
@@ -319,14 +329,16 @@ class AuthController extends Controller
             ->first();
 
         if (!$user) {
-            return $this->errorResponse('OTP is incorrect or has expired.', Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse(null,'OTP is incorrect or has expired.', Response::HTTP_BAD_REQUEST);
         }
         $user->phone_verified_at = Carbon::now();
         $user->otp = null;
         $user->otp_expires_at = null;
         $user->save();
 
-        return $this->successResponse(['phone'=>$request->phone, 'user'=>$user->id], 'User Successfully Verify OTP', Response::HTTP_OK);
+        $token = JWTAuth::fromUser($user);
+
+        return $this->successResponse(['user'=>$user, 'user_id'=>$user->id, 'token' => $token], 'User Successfully Verify OTP', Response::HTTP_OK);
     }
 
     public function resendPhoneOTP(Request $request, KorbaXchangeService $korba)
@@ -338,7 +350,7 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Something went wrong. ' . $validator->errors(), 400);
+                return $this->errorResponse($validator->errors()->first(),'Something went wrong. '.$validator->errors()->first() , 400);
             }
             $otp = rand(100000, 999999);
             $otpExpiry = Carbon::now()->addMinutes(10);
@@ -354,7 +366,7 @@ class AuthController extends Controller
             $user = User::where('phone', $request->phone)->whereIn('role', ['brand', 'performer'])->first();
 
             if (!$user) {
-                return $this->errorResponse('Phone number not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse(null,'Phone number not found', Response::HTTP_NOT_FOUND);
             }
 
             $user->otp = $otp;
@@ -370,7 +382,7 @@ class AuthController extends Controller
         }
         catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse($e->getMessage(),'Something went wrong.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -383,7 +395,7 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Something went wrong. ' . $validator->errors(), 400);
+                return $this->errorResponse($validator->errors()->first(),'Something went wrong. '.$validator->errors()->first(), 400);
             }
             $otp = rand(100000, 999999);
             $otpExpiry = Carbon::now()->addMinutes(10);
@@ -391,7 +403,7 @@ class AuthController extends Controller
             $user = User::where('email', $request->email)->whereIn('role', ['admin', 'reviewer'])->first();
 
             if (!$user) {
-                return $this->errorResponse('Email not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse(null,'Email not found', Response::HTTP_NOT_FOUND);
             }
 
             $user->otp = $otp;
@@ -409,7 +421,7 @@ class AuthController extends Controller
         }
         catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse($e->getMessage(),'Something went wrong.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -422,7 +434,7 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Something went wrong. ' . $validator->errors(), 400);
+                return $this->errorResponse($validator->errors()->first(),'Something went wrong. ' .$validator->errors()->first(), 400);
             }
 
             $user = User::where('email', $request->email)
@@ -430,7 +442,7 @@ class AuthController extends Controller
                 ->where('otp_expires_at', '>=', now()) // be consistent with your column name
                 ->first();
             if (!$user) {
-                return $this->errorResponse('OTP is incorrect or has expired.', Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse(null,'OTP is incorrect or has expired.', Response::HTTP_BAD_REQUEST);
             }
             $user->email_verified_at = Carbon::now();
             $user->otp = null;
@@ -442,7 +454,7 @@ class AuthController extends Controller
         }
         catch (\Exception $e) {
             DB::rollback();
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse($e->getMessage(),'Something went wrong.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
     }
@@ -455,13 +467,13 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse('Validation errors. ' .$validator->errors(), 400);
+            return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), 400);
         }
 
         $user = User::where('id',$request->user_id)->first();
 
         if (! $user) {
-            return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+            return $this->errorResponse(null,'User not found', Response::HTTP_NOT_FOUND);
         }
         $user->password = Hash::make($request->password);
         $user->save();
@@ -507,10 +519,10 @@ class AuthController extends Controller
             ],'Password reset successful', Response::HTTP_OK);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return $this->errorResponse('Validation failed'.$e->getErrors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->errorResponse($e->getErrors(),'Validation failed', Response::HTTP_UNPROCESSABLE_ENTITY);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse($e->getMessage(),'Something went wrong.', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -519,7 +531,7 @@ class AuthController extends Controller
             $token = JWTAuth::getToken();
 
             if (!$token) {
-                return $this->errorResponse('Token not provided', Response::HTTP_UNAUTHORIZED);
+                return $this->errorResponse(null,'Token not provided', Response::HTTP_UNAUTHORIZED);
             }
 
             $newToken = JWTAuth::refresh($token);
@@ -527,16 +539,16 @@ class AuthController extends Controller
             return $this->successResponse($newToken, 'Token refreshed successfully', Response::HTTP_OK);
         }
         catch (TokenBlacklistedException $e) {
-            return $this->errorResponse('Token blacklisted. '.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token blacklisted. ',$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         }
         catch (TokenExpiredException $e) {
-            return $this->errorResponse('Token expired. '.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token expired. ',$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         }
         catch (TokenInvalidException $e) {
-            return $this->errorResponse('Token invalid. '.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token invalid. ',$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         }
         catch (JWTException $e) {
-            return $this->errorResponse('Token Exception: '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Token Exception: ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -546,7 +558,7 @@ class AuthController extends Controller
 
             return $this->successResponse(null, 'Successfully signed out.', Response::HTTP_OK);
         } catch (JWTException $e) {
-            return $this->errorResponse('Failed to sign out. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Failed to sign out. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

@@ -31,7 +31,7 @@ class ReviewerController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation failed. '.$validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $authUser = JWTAuth::user();
@@ -50,7 +50,7 @@ class ReviewerController extends Controller
             return $this->successResponse($user,'Reviewer added.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function allReviewer()
@@ -61,13 +61,13 @@ class ReviewerController extends Controller
                 ->paginate(10);
 //            ->get();
             if ($reviewers->isEmpty()) {
-                return $this->errorResponse('There are no reviewers.', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('There are no reviewers.',null, Response::HTTP_NOT_FOUND);
             }
 
             return $this->successResponse($reviewers,'Reviewers list.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function actionReviewer(Request $request, $id)
@@ -79,7 +79,7 @@ class ReviewerController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation failed. '.$validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $reviewer = User::where('role', 'reviewer')->findOrFail($id);
@@ -90,9 +90,9 @@ class ReviewerController extends Controller
 
             return $this->successResponse($reviewer,"Reviewer account has been {$request->status}.", Response::HTTP_OK);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Record not found. '.$e->getMessage(), Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Record not found. ',$e->getMessage(), Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function viewReviewer($id)
@@ -128,9 +128,9 @@ class ReviewerController extends Controller
             ],'Reviewer successfully viewed!',Response::HTTP_OK);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Record not found. '.$e->getMessage(), Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Record not found. ',$e->getMessage(), Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -140,7 +140,7 @@ class ReviewerController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found',null, Response::HTTP_NOT_FOUND);
             }
 
             $userDetails = User::select('id', 'name', 'email', 'avatar')
@@ -158,7 +158,7 @@ class ReviewerController extends Controller
                 'total_verified_order' => $totalVerifiedOrder,
             ], 'User Details Retrieve' ,Response::HTTP_OK);
         }catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong while retrieving your profile.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong while retrieving your profile.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -191,7 +191,7 @@ class ReviewerController extends Controller
 
             return $this->successResponse($userDetails, 'Profile Data updated' ,Response::HTTP_OK);
         }catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong while retrieving your profile. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong while retrieving your profile. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

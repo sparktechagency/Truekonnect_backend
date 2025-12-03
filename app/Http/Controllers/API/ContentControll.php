@@ -17,7 +17,7 @@ class ContentControll extends Controller
             return $this->successResponse($allLinks, 'All Links Found', Response::HTTP_OK);
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -33,7 +33,7 @@ class ContentControll extends Controller
             return $this->successResponse($promoLink, 'Link Added Successfully', Response::HTTP_CREATED);
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -47,7 +47,7 @@ class ContentControll extends Controller
             return $this->successResponse(null, 'Link Deleted Successfully', Response::HTTP_OK);
         }
         catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

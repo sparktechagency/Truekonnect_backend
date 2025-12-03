@@ -197,12 +197,13 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
             Route::get('allsupporttask','adminSupportTask');
             Route::put('approvedtask/{id}','adminApproveTask');
             Route::put('rejectedtask/{id}','adminRejectedTask');
-            Route::get('allsupportpt','adminSupportPerformTask');
+            Route::get('task/details/{id}','adminTaskDetails');
+            Route::get('allsupportpt/{id}','adminSupportPerformTask');
             Route::put('approvedspt/{id}','adminApprovedSPerformTask');
             Route::put('rejectedspt/{id}','adminRejectedSPerformTask');
        });
        Route::controller(SupportController::class)->group(function(){
-            Route::get('allusersupport','allAdminReviewTickets');
+            Route::get('allusersupport/{id}','allAdminReviewTickets');
             Route::put('answareusersupport/{id}','adminAnswerTicket');
        });
     });

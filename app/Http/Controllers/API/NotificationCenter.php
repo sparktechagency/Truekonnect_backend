@@ -30,15 +30,15 @@ class NotificationCenter extends Controller
             return $this->successResponse($notifications,'Notification retrieve successfully.', Response::HTTP_OK);
         }
         catch (TokenExpiredException $exception){
-            return $this->errorResponse('Token Expired '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Expired ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         }
         catch (TokenInvalidException $exception){
-            return $this->errorResponse('Token Invalid '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Invalid ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         }
         catch (JWTException $exception){
-            return $this->errorResponse('Token Missing '. $exception->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token Missing ', $exception->getMessage(), Response::HTTP_BAD_REQUEST);
         }catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -58,17 +58,14 @@ class NotificationCenter extends Controller
             ];
 
             return $this->successResponse($formattedNotification, 'Notification marked as read.',Response::HTTP_OK);
-        }catch (TokenExpiredException $exception){
-            return $this->errorResponse('Token Expired '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
-        }
-        catch (TokenInvalidException $exception){
-            return $this->errorResponse('Token Invalid '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
-        }
-        catch (JWTException $exception){
-            return $this->errorResponse('Token Missing '. $exception->getMessage(), Response::HTTP_BAD_REQUEST);
-        }
-        catch (\Exception $e){
-            return $this->errorResponse('Something went wrong.' .$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (TokenExpiredException $exception){
+            return $this->errorResponse('Token Expired ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+        } catch (TokenInvalidException $exception){
+            return $this->errorResponse('Token Invalid ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+        } catch (JWTException $exception){
+            return $this->errorResponse('Token Missing ', $exception->getMessage(), Response::HTTP_BAD_REQUEST);
+        } catch (\Exception $e){
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -90,13 +87,13 @@ class NotificationCenter extends Controller
 
             return $this->successResponse($formattedNotifications, 'Notifications marked as read.',Response::HTTP_OK);
         } catch (TokenExpiredException $exception){
-            return $this->errorResponse('Token Expired '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Expired ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (TokenInvalidException $exception){
-            return $this->errorResponse('Token Invalid '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Invalid ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (JWTException $exception){
-            return $this->errorResponse('Token Missing '. $exception->getMessage(), Response::HTTP_BAD_REQUEST);
-        } catch (\Exception $exception){
-            return $this->errorResponse('Something went wrong. '.$exception->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Token Missing ', $exception->getMessage(), Response::HTTP_BAD_REQUEST);
+        } catch (\Exception $e){
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -108,20 +105,20 @@ class NotificationCenter extends Controller
             $notification = $user->notifications()->find($id);
 
             if(!$notification){
-                return $this->errorResponse('Notification not found', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Notification not found',null, Response::HTTP_NOT_FOUND);
             }
 
             $notification->delete();
 
             return $this->successResponse(null, 'Notification deleted successfully.',Response::HTTP_OK);
         } catch (TokenExpiredException $exception){
-            return $this->errorResponse('Token Expired '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Expired ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (TokenInvalidException $exception){
-            return $this->errorResponse('Token Invalid '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Invalid ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (JWTException $exception){
-            return $this->errorResponse('Token Missing '. $exception->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token Missing ', $exception->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -134,13 +131,13 @@ class NotificationCenter extends Controller
 
             return $this->successResponse(null, 'All notifications deleted successfully.', Response::HTTP_OK);
         } catch (TokenExpiredException $exception){
-            return $this->errorResponse('Token Expired '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Expired ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (TokenInvalidException $exception){
-            return $this->errorResponse('Token Invalid '. $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token Invalid ', $exception->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (JWTException $exception){
-            return $this->errorResponse('Token Missing '. $exception->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token Missing ', $exception->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (\Exception $e){
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

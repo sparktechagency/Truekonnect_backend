@@ -25,14 +25,14 @@ class CommonBrandOrPerformerMiddleware
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user || $user->role !== 'performer' && $user->role !== 'brand') {
-                return $this->errorResponse('Unauthorized. Performer or Brand access required.',Response::HTTP_FORBIDDEN);
+                return $this->errorResponse('Unauthorized. Performer or Brand access required.',null,Response::HTTP_FORBIDDEN);
             }
         } catch (TokenExpiredException $e) {
-            return $this->errorResponse('Token has expired. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token has expired. ',$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (TokenInvalidException $e) {
-            return $this->errorResponse('Token is invalid. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Token is invalid. ',$e->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (JWTException $e) {
-            return $this->errorResponse('Authorization token not found. '.$e->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Authorization token not found. ',$e->getMessage(), Response::HTTP_BAD_REQUEST);
         }
         return $next($request);
 

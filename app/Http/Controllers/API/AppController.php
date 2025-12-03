@@ -31,8 +31,8 @@ class AppController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Validation errors',
-                    'errors' => $validator->errors(),
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors()->first(),
                 ], 422);
             }
 
@@ -64,7 +64,7 @@ class AppController extends Controller
             ], 200);
         }
         catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function brandHomepage(Request $request)
@@ -114,7 +114,7 @@ class AppController extends Controller
                 'totalTokenDistribution' => $totalTokenDistribution,
             ],'Brand home page updated successfully.', Response::HTTP_OK);
         }catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -130,7 +130,7 @@ class AppController extends Controller
                 'complete' => $completeOrders,
             ],"Completed tasks", Response::HTTP_OK);
         }catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -146,7 +146,7 @@ class AppController extends Controller
                 'ongoing' => $completeOrders,
             ],"Completed tasks", Response::HTTP_OK);
         }catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -175,7 +175,7 @@ class AppController extends Controller
 
            return $this->successResponse($task,'Order details updated successfully.', Response::HTTP_OK);
        } catch (\Exception $exception){
-           return $this->errorResponse($exception->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+           return $this->errorResponse('Something went wrong',$exception->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
        }
     }
     public function switchProfile()
@@ -196,7 +196,7 @@ class AppController extends Controller
             } elseif ($user->role === 'brand') {
                 $user->role = 'performer';
             } else {
-                return $this->errorResponse('Switching is not for this user.', Response::HTTP_INTERNAL_SERVER_ERROR);
+                return $this->errorResponse('Switching is not for this user.',null, Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
             $user->save();
@@ -209,7 +209,7 @@ class AppController extends Controller
             ],'Profile switched successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong. '.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function allSocialMedia()
@@ -221,19 +221,19 @@ class AppController extends Controller
                         ->select('id','user_id','sm_id','profile_name','verification_by','verified_at','rejection_reason')
                         ->get();
             if ($socialMedia->isEmpty()) {
-                return $this->errorResponse('Social media not found.', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Social media not found.',null, Response::HTTP_NOT_FOUND);
             }
 
             return $this->successResponse($socialMedia,'Social media list successfully.', Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            return $this->errorResponse('Token expired.', Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token expired.', $e->getMessage(),Response::HTTP_UNAUTHORIZED);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            return $this->errorResponse('Token is invalid.', Response::HTTP_FORBIDDEN);
+            return $this->errorResponse('Token is invalid.',$e->getMessage(), Response::HTTP_FORBIDDEN);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function verifiedRequest(Request $request, $id)
@@ -246,7 +246,7 @@ class AppController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation Error. '.$validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse('Validation Error. ',$validator->errors()->first(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $user = JWTAuth::parseToken()->authenticate();
@@ -256,7 +256,7 @@ class AppController extends Controller
                 ->first();
 
             if (!$socialAccount) {
-                return $this->errorResponse('Social account not found.', Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('Social account not found.', null,Response::HTTP_NOT_FOUND);
             }
 
             $socialAccount->profile_name = $request->profile_name;
@@ -282,13 +282,13 @@ class AppController extends Controller
             return $this->successResponse($socialAccount,'Social account updated successfully.', Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            return $this->errorResponse('Token expired.', Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token expired.',$e->getMessage(), Response::HTTP_UNAUTHORIZED);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            return $this->errorResponse('Token is invalid.', Response::HTTP_FORBIDDEN);
+            return $this->errorResponse('Token is invalid.',$e->getMessage(), Response::HTTP_FORBIDDEN);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.'.$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -297,7 +297,7 @@ class AppController extends Controller
         $user = User::where('referral_code', $referral_code)->first();
 
         if (!$user) {
-            return $this->errorResponse('Referral code not found.', Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Referral code not found.',null, Response::HTTP_NOT_FOUND);
         }
 
         $signIn = route('auth.signup'.$referral_code);
