@@ -21,10 +21,25 @@ class Task extends Model
         return $this->belongsTo(User::class,'user_id');
     }
     public function reviewer(){
-        return $this->belongsTo(User::class,'verified_by');  
+        return $this->belongsTo(User::class,'verified_by');
     }
     public function reviewerCountry(){
         return $this->hasOneThrough(Countrie::class, User::class,'id','id','verified_by','country_id')->select('countries.id', 'countries.name', 'countries.flag');
+    }
+
+    public function performers(){
+        return $this->hasMany(TaskPerformer::class, 'task_id', 'id');
+    }
+
+    public function taskFiles(){
+        return $this->hasManyThrough(
+            TaskFile::class,
+            TaskPerformer::class,
+            'task_id',  // Foreign key on TaskPerformer
+            'tp_id',    // Foreign key on TaskFile
+            'id',       // Local key on Task
+            'id'        // Local key on TaskPerformer
+        );
     }
 
 }

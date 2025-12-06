@@ -142,6 +142,14 @@ class AuthController extends Controller
             return $this->errorResponse(null,'User not found.', Response::HTTP_NOT_FOUND);
         }
 
+        if ($userQuery->status === 'banned') {
+            return $this->errorResponse(
+                null,
+                'Your account is banned. Please contact support.',
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
         if (in_array($userQuery->role, ['performer', 'brand'])) {
             if (!$userQuery->phone_verified_at) {
                 return $this->errorResponse('Phone number not verified.',null, Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -549,6 +557,66 @@ class AuthController extends Controller
         }
         catch (JWTException $e) {
             return $this->errorResponse('Token Exception: ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function profile()
+    {
+        try {
+            $user = Auth::user();
+
+//            $user->avatar = asset('storage/'.$user->avatar);
+
+            return $this->successResponse($user, 'Profile retrive successfully', Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function profileUpdate(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'name' => 'sometimes|string',
+                'email' => 'sometimes|string|email|unique:users,email',
+                'phone' => 'sometimes|string',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg',
+            ]);
+
+            $user = Auth::user();
+
+            if ($request->hasFile('avatar')) {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+
+                $file = $request->file('avatar');
+                $extension = $file->getClientOriginalExtension();
+                $fileName = Str::slug($request->name ?? $user->avatar) . '.' . $extension;
+                $iconPath = $file->storeAs('avatars', $fileName, 'public');
+                $data['avatar'] = $iconPath;
+            }
+
+            if (($request->filled('email') || $request->filled('phone'))
+                && in_array($user->role, ['performer', 'brand'])) {
+
+                return $this->errorResponse(
+                    'You can not update your email or phone number',
+                    null,
+                    Response::HTTP_UNPROCESSABLE_ENTITY
+                );
+            }
+
+            $user->update([
+                'name'=>$data['name'] ?? $user->name,
+                'email'=>$data['email'] ?? $user->email,
+                'phone'=>$data['phone'] ?? $user->phone,
+                'avatar'=>$data['avatar'] ?? $user->avatar,
+            ]);
+
+            return $this->successResponse($user, 'Profile updated successfully', Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(),$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

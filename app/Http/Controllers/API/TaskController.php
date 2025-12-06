@@ -530,62 +530,74 @@ class TaskController extends Controller
 
 
     // App For Performer
-    public function availableTasksForMe()
+    public function availableTasksForMe(Request $request)
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
             if (!$user) {
-                return $this->errorResponse('User not found', null,Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User not found', null, Response::HTTP_NOT_FOUND);
             }
 
             if (!$user->country_id) {
-                return $this->errorResponse('User country not found',null, Response::HTTP_NOT_FOUND);
+                return $this->errorResponse('User country not found', null, Response::HTTP_NOT_FOUND);
             }
 
-            $perPage =10;
-            $tasks = Task::with([
-                    'country:id,name,flag',
-                    'social:id,name,icon_url',
-                    'engagement:id,engagement_name',
-                    'creator:id,name,avatar'
-                ])
+            $perPage = 10;
+            $search = $request->query('search'); // Get search term from query parameter
+
+            $tasksQuery = Task::with([
+                'country:id,name,flag',
+                'social:id,name,icon_url',
+                'engagement:id,engagement_name',
+                'creator:id,name,avatar'
+            ])
                 ->where('status', 'verifyed')
                 ->whereColumn('quantity', '!=', 'performed')
                 ->where('country_id', $user->country_id)
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage,[
-                    'id',
-                    'sm_id',
-                    'country_id',
-                    'sms_id',
-                    'user_id',
-                    'quantity',
-                    'description',
-                    'link',
-                    'per_perform',
-                    'status',
-                    'performed',
-                    'created_at'
-                ]);
+                ->orderBy('created_at', 'desc');
+
+            // Filter by social name if search term exists
+            if ($search) {
+                $tasksQuery->whereHas('social', function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                });
+            }
+
+            $tasks = $tasksQuery->paginate($perPage, [
+                'id',
+                'sm_id',
+                'country_id',
+                'sms_id',
+                'user_id',
+                'quantity',
+                'description',
+                'link',
+                'per_perform',
+                'status',
+                'performed',
+                'created_at'
+            ]);
 
             if ($tasks->isEmpty()) {
                 return $this->successResponse(null, 'No available task for your country yet', Response::HTTP_OK);
             }
 
             return $this->successResponse([
-                'username'=>$user->name,
-                'tasks'=>$tasks
+                'username' => $user->name,
+                'tasks' => $tasks
             ], 'All tasks fetched successfully.', Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            return $this->errorResponse('Token expired. Please log in again.',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Token expired. Please log in again.', $e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            return $this->errorResponse('Invalid or missing token.',$e->getMessage(),Response::HTTP_UNAUTHORIZED);
+            return $this->errorResponse('Invalid or missing token.', $e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+
     public function saveTask(Request $request)
     {
         DB::beginTransaction();
@@ -805,7 +817,7 @@ class TaskController extends Controller
 
             if ($status === 'order') {
 
-                $taskPerform = TaskPerformer::with(['task', 'performer', 'reviewer', 'taskAttached'])
+                $taskPerform = TaskPerformer::with(['task', 'performer','performer.taskPerformerSocialAc.social', 'reviewer', 'taskAttached','task.engagement'])
                     ->where('status', 'admin_review')
                     ->when($search, function ($q) use ($search) {
                         $q->where(function ($sub) use ($search) {
@@ -971,7 +983,9 @@ class TaskController extends Controller
     public function adminTaskDetails($id)
     {
         try {
-            $task = Task::with(['country:id,flag','reviewer:id,name,email,phone,country_id','reviewer.country:id,name','engagement:id,engagement_name'])->find($id);
+            $task = Task::with(['country:id,name,flag','social:id,name,icon_url','reviewer:id,name,email,phone,country_id,avatar','reviewer.country:id,name','engagement:id,engagement_name','performers.taskAttached','taskFiles'])->find($id);
+
+            $support = SupportTicket::find($id);
 
             return $this->successResponse($task, 'Task details.', Response::HTTP_OK);
         }catch (\Exception $e) {

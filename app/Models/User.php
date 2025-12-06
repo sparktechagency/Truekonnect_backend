@@ -92,4 +92,9 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(TaskPerformer::class, 'verified_by');
     }
 
+    public function taskPerformerSocialAc()
+    {
+        return $this->hasMany(SocialAccount::class, 'user_id');
+    }
+
 }

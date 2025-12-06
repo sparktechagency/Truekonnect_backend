@@ -31,7 +31,7 @@ class ReviewerController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse($validator->errors()->first(),$validator->errors()->first(), Response::HTTP_UNPROCESSABLE_ENTITY);
+                return $this->errorResponse('Validation Error',$validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             $authUser = JWTAuth::user();
@@ -53,23 +53,47 @@ class ReviewerController extends Controller
             return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function allReviewer()
+    public function allReviewer(Request $request)
     {
         try {
-            $reviewers = User::where('role', 'reviewer')
-                ->withCount(['verifiedAccounts','verifiedTasks','verifiedPerformance'])
-                ->paginate(10);
-//            ->get();
-            if ($reviewers->isEmpty()) {
-                return $this->errorResponse('There are no reviewers.',null, Response::HTTP_NOT_FOUND);
+            $query = User::where('role', 'reviewer');
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%$search%")
+                        ->orWhere('email', 'like', "%$search%");
+                });
             }
 
-            return $this->successResponse($reviewers,'Reviewers list.', Response::HTTP_OK);
+
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+
+            if ($request->filled('from_date')) {
+                $query->whereDate('created_at', '>=', $request->from_date);
+            }
+            if ($request->filled('to_date')) {
+                $query->whereDate('created_at', '<=', $request->to_date);
+            }
+
+
+            $reviewers = $query->withCount(['verifiedAccounts', 'verifiedTasks', 'verifiedPerformance'])->latest()
+                ->paginate($request->per_page ?? 10);
+
+            if ($reviewers->isEmpty()) {
+                return $this->successResponse([], 'No Reviewer Found',200);
+            }
+
+            return $this->successResponse($reviewers, 'Reviewers retrieved successfully', 200);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong.', $e->getMessage(), 500);
         }
     }
+
     public function actionReviewer(Request $request, $id)
     {
         try {

@@ -64,6 +64,12 @@ Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('refreshtoken', 'refreshToken');
     Route::post('signout', 'signOut');
 });
+
+Route::middleware('auth:api')->group(function () {
+    Route::get('my/profile', [AuthController::class,'profile']);
+    Route::post('profile/update', [AuthController::class,'profileUpdate']);
+
+
 Route::prefix('app')->group(function () {
     Route::middleware(UserMiddelware::class)->controller(AppController::class)->group(function () {
         Route::controller(TaskController::class)->group(function () {
@@ -256,4 +262,5 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
     Route::controller(AdminDashboard::class)->group(function(){
         Route::get('dashboard','adminDashboard');
     });
+});
 });

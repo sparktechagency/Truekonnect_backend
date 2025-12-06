@@ -31,8 +31,15 @@ class TaskPerformer extends Model
                 return $this->hasMany(TaskFile::class,'tp_id');
         }
 
-        // public function taskPerformerSocialAc(){
-        //         return $this->hasOneThrough(User::class,Task::class,SocialAccount::class,'id','id','id', 'task_id','user_id',);
-        // }
+         public function taskPerformerSocialAc(){
+             return $this->hasManyThrough(
+                 SocialAccount::class,
+                 User::class,
+                 'id',
+                 'user_id',
+                 'user_id',
+                 'id'
+             );
+         }
 
 }
