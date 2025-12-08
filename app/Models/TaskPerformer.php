@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class TaskPerformer extends Model
 {
+    use HasFactory;
         protected $fillable=['user_id','task_id','token_earned','status','verified_by','rejection_reason'];
 
         public function task(){
-                return $this->belongsTo(Task::class,'task_id');
+                return $this->belongsTo(Task::class,'task_id','id');
         }
         public function country(){
                 return $this->hasOneThrough(Countrie::class,Task::class,'id','id', 'task_id','country_id');
@@ -21,7 +23,7 @@ class TaskPerformer extends Model
                 return $this->hasOneThrough(User::class,Task::class,'id','id', 'task_id','user_id');
         }
         public function performer(){
-                return $this->belongsTo(User::class,'user_id');
+                return $this->belongsTo(User::class,'user_id','id');
         }
         public function reviewer()
         {

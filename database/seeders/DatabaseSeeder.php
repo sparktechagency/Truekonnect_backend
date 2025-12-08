@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\TaskPerformer;
+use App\Models\TaskSave;
 use Illuminate\Database\Seeder;
 use Database\Seeders\AdminSeeder;
 use Database\Seeders\SocialSeeder;
@@ -17,7 +19,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CountriesSeeder::class,
             AdminSeeder::class,
-            SocialSeeder::class
+            SocialSeeder::class,
+            TaskSeed::class,
+            UserSeed::class,
+            TaskSaveSeed::class,
+            TaskPerformerSeed::class,
+            TaskFileSeed::class,
         ]);
     }
 }

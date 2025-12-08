@@ -74,8 +74,10 @@ Route::prefix('app')->group(function () {
     Route::middleware(UserMiddelware::class)->controller(AppController::class)->group(function () {
         Route::controller(TaskController::class)->group(function () {
             Route::get('taskes','availableTasksForMe');
+            Route::get('tasks/details/{id}','singleTaskDetails');
             Route::post('savetask','saveTask');
             Route::post('tasksubmited','submitTask');
+            Route::get('ongoing/tasks','ongoingTasks');
             Route::get('myperformtask','myPerformTask');
         });
         Route::prefix('withdrawal')->controller(WithdrawalController::class)->group(function(){
@@ -216,6 +218,7 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
     Route::prefix('management')->controller(UserManagementController::class)->group(function(){
         Route::get('user/list','index');
         Route::get('performer/details/{userId}','performerDetails');
+        Route::get('all/referrals/{userId}','allReferrals');
         Route::post('change/status/{userId}','changeStatus');
         Route::post('send/token/{userId}','sendToken');
     });

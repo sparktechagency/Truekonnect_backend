@@ -61,6 +61,30 @@ class User extends Authenticatable implements JWTSubject
         ];
     }
 
+    public function scopeSearch($query, $value)
+    {
+        if (!$value) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($value) {
+            $q->where('name', 'like', "%{$value}%")
+                ->orWhere('email', 'like', "%{$value}%")
+//                ->orWhere('status', 'like', "%{$value}%")
+                ->orWhere('role', 'like', "%{$value}%");
+        });
+    }
+
+    public function scopePerformerOrBrand($query, $status = null)
+    {
+        $query->whereIn('role', ['performer', 'brand']);
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query;
+    }
     public function getJWTIdentifier()
     {
         return $this->getKey();
@@ -96,5 +120,28 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(SocialAccount::class, 'user_id');
     }
+
+    public function taskSave(){
+        return $this->hasMany(TaskSave::class, 'user_id');
+    }
+
+    public function getStatusAttribute($value)
+    {
+        if ($value == 'active') {
+            return 'Not Banned';
+        }else{
+            return 'Banned';
+        }
+    }
+
+    public function getAvatarAttribute($value)
+    {
+        if ($value == 0) {
+           return 'avatars/default_avatar.png';
+        }
+        return $value;
+    }
+
+
 
 }

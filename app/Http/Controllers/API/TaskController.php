@@ -543,8 +543,21 @@ class TaskController extends Controller
                 return $this->errorResponse('User country not found', null, Response::HTTP_NOT_FOUND);
             }
 
-            $perPage = 10;
-            $search = $request->query('search'); // Get search term from query parameter
+            $perPage = $request->query('per_page',10);
+            $search = $request->query('category');
+            $searchValue = $request->query('search');
+
+//            if (strlen(trim($search)) === 0) {
+//                $errors['category'] = 'Category cannot be empty';
+//            }
+//
+//            if (strlen(trim($searchValue)) === 0) {
+//                $errors['search'] = 'Search value cannot be empty';
+//            }
+//
+//            if (!empty($errors)) {
+//                return $this->errorResponse('Validation Error', $errors, Response::HTTP_BAD_REQUEST);
+//            }
 
             $tasksQuery = Task::with([
                 'country:id,name,flag',
@@ -557,12 +570,45 @@ class TaskController extends Controller
                 ->where('country_id', $user->country_id)
                 ->orderBy('created_at', 'desc');
 
-            // Filter by social name if search term exists
+
             if ($search) {
                 $tasksQuery->whereHas('social', function($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%');
                 });
             }
+//            if (!empty($search)) {
+//                $tasksQuery->where(function ($q) use ($search, $searchValue) {
+//                    if (!empty($search)) {
+//                        $q->whereHas('social', function ($sq) use ($search) {
+//                            $sq->where('name', 'like', '%' . $search . '%');
+//                        });
+//                    }
+//                });
+//
+//            }
+
+                if (empty($searchValue)) {
+
+                    $tasksQuery->where('description', 'like', "%{$searchValue}%")
+                        ->orWhere('link', 'like', "%{$searchValue}%")
+                        ->orWhere('note', 'like', "%{$searchValue}%")
+                        ->orWhere('rejection_reason', 'like', "%{$searchValue}%")
+                        ->orWhere('token_distributed', 'like', "%{$searchValue}%")
+                        ->orWhere('per_perform', 'like', "%{$searchValue}%");
+
+                    $tasksQuery->orWhereHas('social', function ($sq) use ($searchValue) {
+                        $sq->where('name', 'like', "%{$searchValue}%");
+                        })
+                        ->orWhereHas('engagement', function ($eq) use ($searchValue) {
+                            $eq->where('engagement_name', 'like', "%{$searchValue}%");
+                        })
+                        ->orWhereHas('creator', function ($cq) use ($searchValue) {
+                            $cq->where('name', 'like', "%{$searchValue}%");
+                        })
+                        ->orWhereHas('country', function ($tc) use ($searchValue) {
+                            $tc->where('name', 'like', "%{$searchValue}%");
+                    });
+                }
 
             $tasks = $tasksQuery->paginate($perPage, [
                 'id',
@@ -597,6 +643,32 @@ class TaskController extends Controller
         }
     }
 
+    public function singleTaskDetails(Request $request, $taskId)
+    {
+        try {
+            $task = Task::with([
+                'country:id,name,flag',
+                'social:id,name,icon_url',
+                'engagement:id,engagement_name',
+                'creator:id,name,avatar'
+            ])->findOrFail($taskId);
+
+            return $this->successResponse($task, 'Task fetched successfully', Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function ongoingTasks(Request $request)
+    {
+        try {
+            $taskSave = TaskSave::with(['user','task'])->where('user_id',Auth::id())->get();
+
+            return $this->successResponse($taskSave, 'Task fetched successfully', Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
     public function saveTask(Request $request)
     {
@@ -618,12 +690,17 @@ class TaskController extends Controller
 
             $user = JWTAuth::parseToken()->authenticate();
 
-            $alreadySaved = TaskSave::where('user_id', $user->id)
+            $deleted = TaskSave::where('user_id', $user->id)
                 ->where('task_id', $request->task_id)
-                ->exists();
+                ->delete();
 
-            if ($alreadySaved) {
-                return $this->errorResponse('This task already exists.', null,Response::HTTP_CONFLICT);
+            if ($deleted) {
+
+                DB::commit();
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Task unsaved successfully.',
+                ], Response::HTTP_OK);
             }
 
             $saveTask = TaskSave::create([

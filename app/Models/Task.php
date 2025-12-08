@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
+    use HasFactory;
     protected $fillable=['sm_id','sms_id','user_id','country_id','quantity','description','link','per_perform','total_token','token_distributed','unite_price','total_price','note','rejection_reason'];
 
     public function country(){
@@ -18,7 +20,7 @@ class Task extends Model
         return $this->belongsTo(SocialMediaService::class,'sms_id');
     }
     public function creator(){
-        return $this->belongsTo(User::class,'user_id');
+        return $this->belongsTo(User::class,'user_id','id');
     }
     public function reviewer(){
         return $this->belongsTo(User::class,'verified_by');
@@ -31,6 +33,15 @@ class Task extends Model
         return $this->hasMany(TaskPerformer::class, 'task_id', 'id');
     }
 
+    public function users(){
+        return $this->hasOneThrough(
+            User::class,
+            TaskPerformer::class,
+            'task_id',
+            'id',
+            'id',
+            'user_id');
+    }
     public function taskFiles(){
         return $this->hasManyThrough(
             TaskFile::class,
@@ -40,6 +51,22 @@ class Task extends Model
             'id',       // Local key on Task
             'id'        // Local key on TaskPerformer
         );
+    }
+
+    public function tasksave()
+    {
+        return $this->hasMany(TaskSave::class, 'task_id');
+    }
+
+    protected $appends = ['is_saved_by_user'];
+
+    public function getIsSavedByUserAttribute()
+    {
+        $userId = auth()->id();
+        return $this->tasksave()->where('user_id', $userId)->exists();
+//        return $this->performers()
+//            ->where('user_id', $userId)
+//            ->exists();
     }
 
 }

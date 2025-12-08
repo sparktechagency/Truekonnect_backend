@@ -123,7 +123,7 @@ class ReviewerController extends Controller
     {
         try {
             $reviewer = User::with('country:id,name,flag')->where('role', 'reviewer')
-                ->select('id','name','email','phone','country_id')
+                ->select('id','name','email','phone','country_id','status','avatar')
                 ->findOrFail($id);
 
             $totalVerified = User::where('verification_by', $id)->count();

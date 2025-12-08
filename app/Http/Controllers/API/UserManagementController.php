@@ -18,23 +18,27 @@ use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 class UserManagementController extends Controller
 {
     /* Rubayet */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $userActive = User::with('country:id,name,flag')
-                ->withCount('referral')
-                ->where('role','brand')
-                ->orWhere('role','performer')
-                ->where('status','active')
+            $data = $request->validate([
+                'search' => 'nullable|string',
+                'status'=> 'nullable|string',
+            ]);
+            $userActive = User::with('country:id,name,flag')->whereIn('role',['performer','brand'])->performerOrBrand($data['status'] ?? 'active')
+                ->withCount('referral')->search($data['search'] ?? null)
+//                ->where('role','brand')
+//                ->orWhere('role','performer')
+//                ->where('status','active')
 //                ->get();
             ->paginate(10);
-            $userBanned = User::with('country:id,flag')
-                ->where('role','brand')
-                ->orWhere('role','performer')
-                ->where('status','banned')
-//                ->get();
-            ->paginate(10);
-            return $this->successResponse(['active users'=>$userActive,'user banned'=>$userBanned],'All users retrieved successfully',Response::HTTP_OK);
+//            $userBanned = User::with('country:id,flag')
+//                ->where('role','brand')
+//                ->orWhere('role','performer')
+//                ->where('status','banned')
+////                ->get();
+//            ->paginate(10);
+            return $this->successResponse($userActive,'All users retrieved successfully',Response::HTTP_OK);
         } catch (TokenExpiredException $exception){
             return $this->errorResponse('Token expired. ',$exception->getMessage(), Response::HTTP_BAD_REQUEST);
         }
@@ -46,12 +50,12 @@ class UserManagementController extends Controller
     public function performerDetails($userId)
     {
         try {
-            $userList = User::with('country:id,flag')->find($userId);
+            $userList = User::with('country:id,name,flag')->find($userId);
 
             if(!$userList){
                 return $this->errorResponse('User not found',null, Response::HTTP_NOT_FOUND);
             }
-            $referredUser = User::with('country:id,flag')->where('referral_id', $userId)->get();
+            $referredUser = User::with('country:id,name,flag')->where('referral_id', $userId)->inRandomOrder()->take(6)->get();
             $totalWithdrawal = Withdrawal::where('user_id', $userId)->where('status', 'success')->sum('amount');
             $totalEarnedToken = User::where('id', $userId)->sum('earn_token');
             $totalTaskPerform = TaskPerformer::where('user_id', $userId)->count();
@@ -88,16 +92,22 @@ class UserManagementController extends Controller
                 ];
             }
             return $this->successResponse([
-                'User Details' => $userList,
-                'Referred User' => $referredUser,
-                'Total Withdrawal' => $totalWithdrawal,
-                'Total Earned Token' => $totalEarnedToken,
-                'Total Task Perform' => $totalTaskPerform,
-                'Brand Details' => $brandDetails,
+                'user_details' => $userList,
+                'referred_user' => $referredUser,
+                'total_withdrawal' => $totalWithdrawal,
+                'total_earned_token' => $totalEarnedToken,
+                'total_task_perform' => $totalTaskPerform,
+                'brand_details' => $brandDetails,
             ], 'User retrieved successfully', Response::HTTP_OK);
         }catch (\Exception $e){
             return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    public function allReferrals($userId)
+    {
+        $referredUser = User::with('country:id,name,flag')->where('referral_id', $userId)->paginate(10);
+        return $this->successResponse($referredUser,'All users retrieved successfully',Response::HTTP_OK);
     }
 
     public function changeStatus(Request $request, $userId)
