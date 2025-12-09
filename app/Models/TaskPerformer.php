@@ -30,7 +30,7 @@ class TaskPerformer extends Model
             return $this->belongsTo(User::class,'verified_by');
         }
         public function taskAttached(){
-                return $this->hasMany(TaskFile::class,'tp_id');
+                return $this->hasMany(TaskFile::class,'tp_id','id');
         }
 
          public function taskPerformerSocialAc(){
@@ -44,4 +44,8 @@ class TaskPerformer extends Model
              );
          }
 
+         public function getStatusAttribute($value)
+         {
+             return ucfirst($value);
+         }
 }

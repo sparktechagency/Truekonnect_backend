@@ -653,7 +653,10 @@ class TaskController extends Controller
                 'creator:id,name,avatar'
             ])->findOrFail($taskId);
 
-            return $this->successResponse($task, 'Task fetched successfully', Response::HTTP_OK);
+            $taskPerform = TaskPerformer::with(['task','task.creator:id,name,avatar','task.social:id,name,icon_url','taskAttached'])->findOrFail($taskId);
+
+//            dd($taskPerform->taskAttached());
+            return $this->successResponse(['task'=>$task,'taskPerform'=>$taskPerform], 'Task fetched successfully', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -662,7 +665,10 @@ class TaskController extends Controller
     public function ongoingTasks(Request $request)
     {
         try {
-            $taskSave = TaskSave::with(['user','task'])->where('user_id',Auth::id())->get();
+            $data = $request->validate([
+                'per_page' => 'required|integer',
+            ]);
+            $taskSave = TaskSave::with(['user:id,name,avatar','task','task.creator:id,name,avatar','task.engagement:id,engagement_name','task.social:id,icon_url'])->where('user_id',Auth::id())->paginate($data['per_page']);
 
             return $this->successResponse($taskSave, 'Task fetched successfully', Response::HTTP_OK);
         }catch (\Exception $e) {
@@ -797,29 +803,214 @@ class TaskController extends Controller
             return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function myPerformTask(Request $request){
-         $perPage = $request->query('per_page', 10);
+//    public function myPerformTask(Request $request){
+//    $perPage = $request->query('per_page', 10);
+//    $search = $request->query('search');
+//    $status = strtolower($request->query('status'));
+////         dd($status);
+//
+//    try {
+//        $user = JWTAuth::parseToken()->authenticate();
+//        if ($status == 'rejected' || $status == 'completed') {
+//            $tasks = TaskPerformer::with([
+//                'task',
+//                'task.social',
+//                'taskAttached:id,tp_id,file_url',
+//                'country',
+//                'engagement',
+//                'creator' => function ($q) {
+//                    $q->select('users.id as user_id', 'users.name', 'users.avatar');
+//                },
+//                'performer:id,name,avatar',
+//            ])
+//                ->when($search ?? null, function ($query, $search) {
+//                    $query->whereHas('engagement', function ($q) use ($search) {
+//                        $q->where('engagement_name', 'like', "%{$search}%");
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('social', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                        });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('creator', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                        });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+////                            $q->whereHas('creator', function ($q2) use ($search) {
+//                        $q->where('description', 'like', "%{$search}%");
+//                        $q->where('total_token', 'like', "%{$search}%");
+//                        $q->where('token_distributed', 'like', "%{$search}%");
+//                        $q->where('quantity', 'like', "%{$search}%");
+////                            });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('country', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                            $q2->where('dial_code', 'like', "%{$search}%");
+//                            $q2->where('currency_code', 'like', "%{$search}%");
+////                                $q2->where('quantity', 'like', "%{$search}%");
+//                        });
+//                    });
+//                })->where('task_performers.status', $status)
+//                ->where('user_id', $user->id)->orderBy('created_at', 'desc')->paginate($perPage);
+//        }elseif($status == 'all'){
+//            $tasks = TaskPerformer::with([
+//                'task',
+//                'taskAttached:id,tp_id,file_url',
+//                'country',
+//                'engagement',
+//                'creator' => function ($q) {
+//                    $q->select('users.id as user_id', 'users.name', 'users.avatar');
+//                },
+//                'performer:id,name,avatar',
+//            ])
+//                ->when($search ?? null, function ($query, $search) {
+//                    $query->whereHas('engagement', function ($q) use ($search) {
+//                        $q->where('engagement_name', 'like', "%{$search}%");
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('social', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                        });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('creator', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                        });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+////                            $q->whereHas('creator', function ($q2) use ($search) {
+//                        $q->where('description', 'like', "%{$search}%");
+//                        $q->where('total_token', 'like', "%{$search}%");
+//                        $q->where('token_distributed', 'like', "%{$search}%");
+//                        $q->where('quantity', 'like', "%{$search}%");
+////                            });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('country', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                            $q2->where('dial_code', 'like', "%{$search}%");
+//                            $q2->where('currency_code', 'like', "%{$search}%");
+////                                $q2->where('quantity', 'like', "%{$search}%");
+//                        });
+//                    });
+//                })
+//                ->where('user_id', $user->id)->orderBy('created_at', 'desc')->paginate($perPage);
+//        }else{
+//            $tasks = TaskPerformer::with([
+//                'task',
+//                'task.social',
+//                'taskAttached:id,tp_id,file_url',
+//                'country',
+//                'engagement',
+//                'creator' => function ($q) {
+//                    $q->select('users.id as user_id', 'users.name', 'users.avatar');
+//                },
+//                'performer:id,name,avatar',
+//            ])
+//                ->when($search ?? null, function ($query, $search) {
+//                    $query->whereHas('engagement', function ($q) use ($search) {
+//                        $q->where('engagement_name', 'like', "%{$search}%");
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('social', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                        });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('creator', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                        });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+////                            $q->whereHas('creator', function ($q2) use ($search) {
+//                        $q->where('description', 'like', "%{$search}%");
+//                        $q->where('total_token', 'like', "%{$search}%");
+//                        $q->where('token_distributed', 'like', "%{$search}%");
+//                        $q->where('quantity', 'like', "%{$search}%");
+////                            });
+//                    })->orWhereHas('task', function ($q) use ($search) {
+//                        $q->whereHas('country', function ($q2) use ($search) {
+//                            $q2->where('name', 'like', "%{$search}%");
+//                            $q2->where('dial_code', 'like', "%{$search}%");
+//                            $q2->where('currency_code', 'like', "%{$search}%");
+////                                $q2->where('quantity', 'like', "%{$search}%");
+//                        });
+//                    });
+//                })
+//                ->where('user_id', $user->id)->orderBy('created_at', 'desc')->paginate($perPage);
+//        }
+//
+//        return $this->successResponse($tasks, 'Tasks retrieved successfully.', Response::HTTP_OK);
+//
+//    } catch (\Exception $e) {
+//        return $this->errorResponse('Failed to fetch tasks ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+//    }
+//}
+
+    public function myPerformTask(Request $request)
+    {
+        $perPage = $request->query('per_page', 10);
+        $search = $request->query('search');
+        $status = strtolower($request->query('status'));
 
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            $tasks = TaskPerformer::with([
+
+            // Base query
+            $query = TaskPerformer::with([
                 'task',
+                'task.social',
                 'taskAttached:id,tp_id,file_url',
                 'country',
                 'engagement',
-                'creator'=>function($q){
-                    $q->select('users.id as user_id', 'users.name', 'users.avatar');
-                },
+                'creator:users.id,name,avatar',
                 'performer:id,name,avatar',
-                ])->where('user_id',$user->id)->orderBy('created_at', 'desc')->paginate($perPage);
+            ])
+                ->where('user_id', $user->id)
+                ->orderBy('created_at', 'desc');
+
+            // STATUS FILTER
+            if ($status && $status !== 'all') {
+                $query->where('task_performers.status', $status);
+            }
+
+            // SEARCH FILTER (grouped properly)
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+
+                    // Engagement name
+                    $q->whereHas('engagement', function ($q2) use ($search) {
+                        $q2->where('engagement_name', 'like', "%{$search}%");
+                    });
+
+                    // Task → Social
+                    $q->orWhereHas('task.social', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
+
+                    // Task → Creator
+                    $q->orWhereHas('task.creator', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
+
+                    // Task direct fields
+                    $q->orWhereHas('task', function ($q2) use ($search) {
+                        $q2->where('description', 'like', "%{$search}%")
+                            ->orWhere('total_token', 'like', "%{$search}%")
+                            ->orWhere('token_distributed', 'like', "%{$search}%")
+                            ->orWhere('quantity', 'like', "%{$search}%");
+                    });
+
+                    // Task → Country
+                    $q->orWhereHas('task.country', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                            ->orWhere('dial_code', 'like', "%{$search}%")
+                            ->orWhere('currency_code', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            // FINAL: paginate
+            $tasks = $query->paginate($perPage);
 
             return $this->successResponse($tasks, 'Tasks retrieved successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to fetch tasks ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Failed to fetch tasks', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 
     //admin
 

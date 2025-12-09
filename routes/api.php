@@ -68,7 +68,7 @@ Route::prefix('auth')->controller(AuthController::class)->group(function () {
 Route::middleware('auth:api')->group(function () {
     Route::get('my/profile', [AuthController::class,'profile']);
     Route::post('profile/update', [AuthController::class,'profileUpdate']);
-
+    Route::get('links',[ContentControll::class,'index']);
 
 Route::prefix('app')->group(function () {
     Route::middleware(UserMiddelware::class)->controller(AppController::class)->group(function () {
@@ -236,7 +236,7 @@ Route::prefix('admin')->middleware(AdminMiddelware::class)->group(function(){
     });
 
     Route::prefix('promo')->controller(ContentControll::class)->group(function(){
-        Route::get('links','index');
+
         Route::post('links','store');
         Route::delete('links/{id}','delete');
     });

@@ -25,9 +25,10 @@ class ContentControll extends Controller
     {
         try {
             $data = $request->validate([
-                'link' => 'required',
+                'link' => 'required|mimetypes:video/mp4,video/avi,video/mpeg,video/quicktime|max:1048576'
             ]);
 
+            $data['link'] = $this->uploadFile($request->file('link'),'video/');
             $promoLink = PromoLink::create($data);
 
             return $this->successResponse($promoLink, 'Link Added Successfully', Response::HTTP_CREATED);
@@ -42,6 +43,7 @@ class ContentControll extends Controller
         try {
             $promo = PromoLink::find($id);
 
+            $this->deleteFile($promo->link);
             $promo->delete();
 
             return $this->successResponse(null, 'Link Deleted Successfully', Response::HTTP_OK);

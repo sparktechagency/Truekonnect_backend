@@ -72,14 +72,14 @@ class UserManagementController extends Controller
                     ->whereHas('user', fn($q) => $q->where('referral_id', $userId))
                     ->where('status', 'completed')
                     ->orderBy('created_at')
-                    ->unique('user_id')
+                    ->distinct('user_id')
                     ->count();
 
                 $referralsWithdrawals = Withdrawal::with('user:id,name,email,avatar')
                     ->whereHas('user', fn($q) => $q->where('referral_id', $userId))
                     ->where('status', 'completed')
                     ->orderBy('created_at')
-                    ->unique('user_id')
+                    ->distinct('user_id')
                     ->count();
 
             $totalUserPaid = $payment + $referralsWithdrawals;
@@ -118,21 +118,25 @@ class UserManagementController extends Controller
             ]);
             $user = User::find($userId);
 
-            if ($user->status == 'active') {
+
+//            dd($user);
+            if ($user->status == 'Not Banned') {
                 $user->status = 'banned';
                 $user->rejection_reason = $data['rejection_reason'];
+                $user->save();
 
                 $title = 'Status has been updated!';
                 $body = 'Sorry, your account has been banned. Reason: '. ($data['rejection_reason'] ?? 'Not specified');
             } else {
                 $user->status = 'active';
                 $user->rejection_reason = null;
+                $user->save();
 
                 $title = 'Status has been updated!';
                 $body = 'Your account has been activated.';
             }
 
-            $user->save();
+
 
             $user->notify(new UserNotification($title, $body));
 

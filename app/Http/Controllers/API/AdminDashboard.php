@@ -23,24 +23,42 @@ class AdminDashboard extends Controller
                 ->whereBetween('created_at', [$startWeek, $endWeek])
                 ->selectRaw('DATE(created_at) as day, SUM(amount) as total')
                 ->groupBy('day')
-                ->orderBy('day')
-                ->get();
+                ->pluck('total','day');
+
+            $allDays = [];
+            $current = $startWeek->copy();
+            while ($current->lte($endWeek)) {
+                $dayName = $current->format('D'); // Mon, Tue, Wed ...
+                $allDays[$dayName] = $weeklyRevenuePerDay[$current->format('Y-m-d')] ?? 0;
+                $current->addDay();
+            }
 
             $startOfMonth = Carbon::now()->startOfMonth();
             $endOfMonth = Carbon::now()->endOfMonth();
 
-            $weeklyRevenue = Payment::where('status', 'paid')
+// Get revenue per day
+            $dailyRevenue = Payment::where('status', 'paid')
                 ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                ->selectRaw('WEEK(created_at, 1) as week, SUM(amount) as total')
-                ->groupBy('week')
-                ->orderBy('week')
-                ->get();
+                ->selectRaw('DAY(created_at) as day, SUM(amount) as total')
+                ->groupBy('day')
+                ->pluck('total','day'); // key = day number, value = total
+
+// Fill all days of the month with 0 if no data
+            $allMonthDays = [];
+            $current = $startOfMonth->copy();
+            while ($current->lte($endOfMonth)) {
+                $dayNumber = $current->day;
+                $allMonthDays['Day '.$dayNumber] = $dailyRevenue[$dayNumber] ?? 0;
+                $current->addDay();
+            }
+
+//            dd($allMonthDays);
 
             return $this->successResponse([
                 'totaluser' => $totalUser,
                 'totalrevenue' => $totalRevenue,
-                'weeklyrevenue' => $weeklyRevenue,
-                'monthlyrevenue' => $weeklyRevenuePerDay,
+                'weeklyrevenue' => $allDays,
+                'monthlyrevenue' => $allMonthDays,
             ],'Dashboard Information',Response::HTTP_OK);
         }catch (\Exception $e){
             return $this->errorResponse('Something went wrong. ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);

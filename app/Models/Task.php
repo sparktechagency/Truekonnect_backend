@@ -14,7 +14,7 @@ class Task extends Model
         return $this->belongsTo(Countrie::class,'country_id');
     }
     public function social(){
-        return $this->belongsTo(SocialMedia::class,'sm_id');
+        return $this->belongsTo(SocialMedia::class,'sm_id','id');
     }
     public function engagement(){
         return $this->belongsTo(SocialMediaService::class,'sms_id');
