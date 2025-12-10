@@ -48,7 +48,8 @@ class WithdrawalController extends Controller
             if (!$user) {
                 return $this->errorResponse('User not found.',null,Response::HTTP_NOT_FOUND);
             }
-            $withdrawals = Withdrawal::where('user_id', $user->id)->where('status', 'success')->paginate(10,['id','user_id','amount','status']);
+            $withdrawals = Withdrawal::with(['user:id,name,email,country_id','user.country:id,name,currency_code'])->where('user_id', $user->id)->where('status', 'success')
+                ->paginate(10);
             $totalWithdrawal = $withdrawals->sum('amount');
             $info = User::where('id', $user->id)
                 ->with('country:id,name,token_rate,currency_code')
@@ -58,6 +59,7 @@ class WithdrawalController extends Controller
             }
             return $this->successResponse([
                 'name'=>$info->name,
+                'currency_code'=>$info->country->currency_code,
                 'total_earn_token'=> $info->earn_token+$info->convert_token,
                 'total_withdraw'=>$totalWithdrawal,
                 'available_balance'=>$info->balance,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Notifications\DatabaseNotification;
@@ -17,12 +18,22 @@ class NotificationCenter extends Controller
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            $notifications = $user->notifications->map(function ($n) {
+            $notifications = $user->notifications()
+                ->latest()
+                ->paginate(10);
+
+            $notifications->getCollection()->transform(function ($n) {
                 return [
                     'id' => $n->id,
                     'title' => $n->data['title'] ?? null,
                     'body' => $n->data['body'] ?? null,
-                    'read_at' => $n->read_at ? $n->read_at->format('M d, Y h:i:s A') : null,
+                    'avatar' => isset($n->data['sender_id'])
+                        ? optional(User::find($n->data['sender_id']))->avatar
+                        : null,
+                    'user_name' => isset($n->data['sender_id'])
+                        ? optional(User::find($n->data['sender_id']))->name
+                        : null,
+                    'read' => $n->read_at ? true : false,
                     'created_at' => $n->created_at->format('M d, Y h:i:s A'),
                 ];
             });

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\API;
 
 use App\Models\Countrie;
 use App\Models\Payment;
+use App\Models\Task;
+use App\Models\TaskPerformer;
 use App\Models\User;
 use App\Models\SocialMedia;
 use App\Models\Withdrawal;
@@ -182,7 +184,18 @@ class AuthController extends Controller
             $user =JWTAuth::parseToken()->authenticate();
 
             $referralCode = url('/ref/' . $user->referral_code);
-
+//            $response = null;
+//            if (Auth::user()->role == 'reviewer'){
+//                $totalPendingAccount = User::where('status','pending')->count();
+//                $totalPendingTask = Task::where('status','pending')->count();
+//                $totalPendingdOrder = TaskPerformer::where('status','pending')->count();
+//
+//                $response = [
+//                    'total_pending_accounts' => $totalPendingAccount,
+//                    'total_pending_task' => $totalPendingTask,
+//                    'total_pending_order' => $totalPendingdOrder,
+//                ];
+//            }
             $payment = Payment::with('user:id,name,email,avatar')
                 ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
                 ->where('status', 'completed')
@@ -565,9 +578,22 @@ class AuthController extends Controller
         try {
             $user = Auth::user();
 
+            $response = null;
+
+                $totalPendingAccount = User::where('status','pending')->count();
+                $totalPendingTask = Task::where('status','pending')->count();
+                $totalPendingdOrder = TaskPerformer::where('status','pending')->count();
+            if (Auth::user()->role == 'reviewer'){
+                $user->total_pending_accounts = $totalPendingAccount;
+                $user->total_pending_task = $totalPendingTask;
+                $user->total_pending_order = $totalPendingdOrder;
+            }
+
 //            $user->avatar = asset('storage/'.$user->avatar);
 
             return $this->successResponse($user, 'Profile retrive successfully', Response::HTTP_OK);
+
+
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }

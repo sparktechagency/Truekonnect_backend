@@ -171,15 +171,15 @@ class ReviewerController extends Controller
                 ->where('id', Auth::id())
                 ->first();
 
-            $totalVerified = User::where('verification_by', Auth::id())->count();
-            $totalVerifiedTask = Task::where('verified_by', Auth::id())->count();
-            $totalVerifiedOrder = TaskPerformer::where('verified_by', Auth::id())->count();
+            $totalPendingAccount = User::where('status','pending')->count();
+            $totalPendingTask = Task::where('status','pending')->count();
+            $totalPendingdOrder = TaskPerformer::where('status','pending')->count();
 
             return $this->successResponse([
                 'my_profile'=>  $userDetails,
-                'total_verified_accounts' => $totalVerified,
-                'total_verified_task' => $totalVerifiedTask,
-                'total_verified_order' => $totalVerifiedOrder,
+                'total_pending_accounts' => $totalPendingAccount,
+                'total_pending_task' => $totalPendingTask,
+                'total_pending_order' => $totalPendingdOrder,
             ], 'User Details Retrieve' ,Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong while retrieving your profile.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);

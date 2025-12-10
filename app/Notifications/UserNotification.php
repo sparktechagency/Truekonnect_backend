@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -42,6 +43,7 @@ class UserNotification extends Notification
             'title' => $this->title,
             'body' => $this->body,
             'sender_id' => Auth::id(),
+            'avatar' => optional(User::find(Auth::id()))->avatar
         ];
     }
 

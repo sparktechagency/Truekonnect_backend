@@ -17,11 +17,35 @@ use Illuminate\Support\Facades\Validator;
 
 class ReviewerDashboardController extends Controller
 {
-    public function allVerificationRequest(){
+    public function allVerificationRequest(Request $request){
         try {
-            $sc=SocialAccount::with(['user:id,name,avatar','social:id,name,icon_url'])
+            $data = $request->validate([
+                'search'   => 'nullable|string',
+                'per_page' => 'nullable|integer',
+            ]);
+
+            $search = $data['search'] ?? null;
+
+            $sc = SocialAccount::with(['user:id,name,avatar,email,role,phone,country_id','user.country:id,name,flag','social:id,name,icon_url'])
                 ->where('status','pending')
-                ->paginate(10,['id', 'user_id', 'sm_id', 'profile_name','note', 'profile_image', 'status']);
+                ->when($search ?? null, function ($query, $search) {
+                    $query->where(function($q) use ($search) {
+                        // Search in SocialAccount fields
+                        $q->where('profile_name', 'like', "%{$search}%")
+//                            ->orWhere('profile_image', 'like', "%{$search}%")
+                            // Search in related user
+                            ->orWhereHas('user', function ($q2) use ($search) {
+                                $q2->where('name', 'like', "%{$search}%")
+                                    ->orWhere('email', 'like', "%{$search}%");
+                            })
+                            // Search in related social
+                            ->orWhereHas('social', function ($q3) use ($search) {
+                                $q3->where('name', 'like', "%{$search}%");
+                            });
+                    });
+                })
+                ->paginate($data['per_page'] ?? 10, ['id', 'user_id', 'sm_id', 'profile_name','note', 'profile_image', 'status']);
+
             return $this->successResponse($sc,'All Verification Request',Response::HTTP_OK);
         }catch (\Exception $e){
             return $this->errorResponse('Something went wrong. ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
