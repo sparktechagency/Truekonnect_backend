@@ -120,9 +120,12 @@ Route::prefix('app')->group(function () {
         });
         Route::controller(AppController::class)->group(function(){
             Route::put('edit-profile', 'updateProfile');
+            Route::post('edit-image-profile', 'updateProfileImage');
+            Route::delete('delete-profile', 'deleteProfile');
             Route::post('switchRole', 'switchProfile');
             Route::get('allsocial', 'allSocialMedia');
             Route::put('socialverification/{id}', 'verifiedRequest');
+            Route::post('/delete/social/account/{id}', 'deleteSocialMedia');
         });
         Route::controller(SupportController::class)->group(function(){
             Route::post('openticket','newticket');

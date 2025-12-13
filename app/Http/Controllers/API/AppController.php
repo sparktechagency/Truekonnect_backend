@@ -9,6 +9,8 @@ use App\Models\TaskPerformer;
 use App\Models\User;
 use App\Models\Withdrawal;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\SocialAccount;
@@ -25,7 +27,7 @@ class AppController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'name' => 'nullable|string|max:255',
-                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480', // 20 MB
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
             ]);
 
             if ($validator->fails()) {
@@ -64,6 +66,74 @@ class AppController extends Controller
             ], 200);
         }
         catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function updateProfileImage(Request $request)
+    {
+//        Log::info('this is from avater image uploa',$request->all());
+        try {
+
+            $validator = Validator::make($request->all(), [
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => $validator->errors(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $user = JWTAuth::user();
+
+
+
+            if ($request->hasFile('avatar')) {
+                $file = $request->file('avatar');
+                $filename = Str::random(20) . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('avatars', $filename, 'public');
+
+                if ($user->avatar && $user->avatar !== 'avatars/default_avatar.png') {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+                $user->avatar = $path;
+            }
+
+            $user->save();
+
+
+
+            return $this->successResponse($user, 'Profile image updated successfully.',200);
+
+//            return response()->json([
+//                'status' => true,
+//                'message' => 'Profile updated successfully.',
+//                'user' => $user,
+//            ], 200);
+        }
+        catch (\Exception $e) {
+            Log::error('Profile image update failed', [
+                'user_id' => optional(JWTAuth::user())->id ?? null,
+                'exception' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function deleteProfile()
+    {
+        try {
+            $user = Auth::user();
+            $user->delete();
+
+            return $this->successResponse(null, 'Profile deleted successfully.',200);
+        }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -218,7 +288,7 @@ class AppController extends Controller
             $user=JWTAuth::user();
             $socialMedia=SocialAccount::with('social:id,name,icon_url')
                         ->where('user_id',$user->id)
-                        ->select('id','user_id','sm_id','profile_name','verification_by','verified_at','rejection_reason')
+//                        ->select('id','user_id','sm_id','profile_name','verification_by','verified_at','rejection_reason')
                         ->get();
             if ($socialMedia->isEmpty()) {
                 return $this->errorResponse('Social media not found.',null, Response::HTTP_NOT_FOUND);
@@ -289,6 +359,26 @@ class AppController extends Controller
 
         } catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function deleteSocialMedia($id)
+    {
+        try {
+            $social = SocialAccount::find($id);
+
+            $social->profile_name = null;
+        $social->profile_image = null;
+        $social->note = null;
+        $social->verification_by = null;
+        $social->rejection_reason = null;
+        $social->status = 'unverified';
+
+        $social->save();
+
+        return $this->successResponse($social,'Social media account deleted successfully.', Response::HTTP_OK);
+        }catch (\Exception $exception){
+            return $this->errorResponse(null, $exception->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

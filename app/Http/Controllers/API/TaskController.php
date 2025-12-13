@@ -170,18 +170,33 @@ class TaskController extends Controller
     //Reviewer Panel
     public function allTask(Request $request){
         $perPage = $request->query('per_page', 10);
+        $search  = $request->query('search');
         try {
             $tasks = Task::with([
                 'country:id,name,flag',
                 'social:id,name,icon_url',
                 'engagement:id,engagement_name',
-                'creator:id,name,avatar'
-            ])->where('status','pending')->orderBy('created_at', 'desc')->paginate($perPage,[
+                'creator:id,name,email,avatar'
+            ])->when($search, function ($q) use ($search) {
+
+                $q->whereHas('engagement', function ($eng) use ($search) {
+                    $eng->where('engagement_name', 'like', "%{$search}%");
+                })
+
+                    ->orWhereHas('creator', function ($creator) use ($search) {
+                        $creator->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+
+            })
+
+                ->where('status','pending')->orderBy('created_at', 'desc')->paginate($perPage,[
                 'id',
                 'sm_id','country_id','sms_id','user_id',
                 'quantity',
                 'description',
                 'link',
+                'total_token',
                 'per_perform',
                 'status',
                 'created_at'
@@ -352,25 +367,48 @@ class TaskController extends Controller
         }
     }
     public function allPerformTask(Request $request){
-        $perPage = $request->query('per_page', 10);
+//        $perPage = $request->query('per_page', 10);
+        $search = $request->query('search');
+
         try {
             $tasks = TaskPerformer::with([
                 'task',
                 'taskAttached:id,tp_id,file_url',
                 'country',
+                'socialTask',
                 'engagement',
-                'creator'=>function($q){
-                    $q->select('users.id as user_id', 'users.name', 'users.avatar');
+                'creator' => function($q){
+                    $q->select('users.id as user_id', 'users.name', 'users.avatar','users.created_at');
                 },
                 'performer',
-                ])->where('status','pending')->orderBy('created_at', 'desc')->paginate($perPage);
+                'social',
+            ])
+                ->when($search, function($query, $search) {
+                    $query->whereHas('creator', function($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                        $q->where('email', 'like', "%{$search}%");
+                    })
+                        ->orWhereHas('performer', function($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                            $q->where('email', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('engagement', function($q) use ($search) {
+                            $q->where('engagement_name', 'like', "%{$search}%");
+                        });
+                })
+                ->where('status','pending')
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
+
+
 
             return $this->successResponse($tasks, 'All tasks fetched successfully.', Response::HTTP_OK);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to fetch tasks. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Failed to fetch tasks.', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
     public function ptapproved($id){
         DB::beginTransaction();
         try {
@@ -384,7 +422,7 @@ class TaskController extends Controller
                 return $this->errorResponse('This task does not exists.', null,Response::HTTP_NOT_FOUND);
             }
 
-            if ($task->status === 'pending') {
+            if ($task->status === 'Pending') {
                 $task->status = 'completed';
                 $task->verified_by = $user->id;
                 $task->save();
@@ -396,7 +434,7 @@ class TaskController extends Controller
 
                 $performer->notify(new UserNotification($title, $body));
                 DB::commit();
-                return $this->successResponse($performer, 'Task approved successfully.', Response::HTTP_OK);
+                return $this->successResponse($task, 'Task approved successfully.', Response::HTTP_OK);
             }
             DB::rollback();
             return $this->errorResponse('Task status cannot be processed',null, Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -428,14 +466,14 @@ class TaskController extends Controller
 
             $task = TaskPerformer::findOrFail($id);
 
-            if ($task->status === 'completed') {
+            if ($task->status === 'Completed') {
                 return $this->errorResponse('This task has already been ',$task->status,Response::HTTP_CONFLICT);
             }
-            if ($task->status === 'rejected') {
+            if ($task->status === 'Rejected') {
                 return $this->errorResponse('This task has already been ',$task->status,Response::HTTP_CONFLICT);
             }
 
-            if ($task->status === 'pending') {
+            if ($task->status === 'Pending') {
                 $task->status = 'rejected';
                 $task->verified_by = $user->id;
                 $task->rejection_reason = $request->rejection_reason;
@@ -484,14 +522,17 @@ class TaskController extends Controller
 
             $task = TaskPerformer::findOrFail($id);
 
-            if ($task->status === 'admin_review') {
+            if ($task->status === 'Admin_review') {
                 return $this->errorResponse('This task has already been ',$task->status,Response::HTTP_CONFLICT);
             }
-            if ($task->status === 'rejected') {
+            if ($task->status === 'Rejected') {
+                return $this->errorResponse('This task has already been ',$task->status,Response::HTTP_CONFLICT);
+            }
+            if ($task->status === 'Completed') {
                 return $this->errorResponse('This task has already been ',$task->status,Response::HTTP_CONFLICT);
             }
 
-            if ($task->status === 'pending') {
+            if ($task->status === 'Pending') {
                 $task->status = 'admin_review';
                 $task->verified_by = $user->id;
                 $task->rejection_reason = $request->rejection_reason;
@@ -508,7 +549,7 @@ class TaskController extends Controller
                 return $this->successResponse($performer, 'Task moved to admin', Response::HTTP_OK);
             }
             DB::rollback();
-            return $this->errorResponse('Task status cannot be processed', nul,Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Task status cannot be processed', null,Response::HTTP_INTERNAL_SERVER_ERROR);
 
         } catch (ModelNotFoundException $e) {
             DB::rollback();
@@ -643,20 +684,37 @@ class TaskController extends Controller
         }
     }
 
-    public function singleTaskDetails(Request $request, $taskId)
+    public function singleTaskDetails(Request $request, string $taskId)
     {
         try {
-            $task = Task::with([
-                'country:id,name,flag',
-                'social:id,name,icon_url',
-                'engagement:id,engagement_name',
-                'creator:id,name,avatar'
-            ])->findOrFail($taskId);
+            $data = $request->validate([
+                'check' => 'required',
+            ]);
+            if ($data['check'] == 'task') {
+                $task = Task::with([
+                    'country:id,name,flag',
+                    'social:id,name,icon_url',
+                    'engagement:id,engagement_name',
+                    'creator:id,name,avatar'
+                ])->findOrFail($taskId);
 
-            $taskPerform = TaskPerformer::with(['task','task.creator:id,name,avatar','task.social:id,name,icon_url','taskAttached'])->findOrFail($taskId);
+                $response = [
+                    'task' => $task
+                ];
+            }elseif ($data['check'] == 'task_performer') {
+
+            $taskPerform = TaskPerformer::with(['task','task.creator:id,name,avatar','task.social:id,name,icon_url','taskAttached','task.engagement'])->findOrFail($taskId);
+
+//            if ($taskPerform){
+//                return $this->errorResponse(null,'Task Performer not found!', Response::HTTP_NOT_FOUND);
+//            }
+                $response = [
+                    'task_performer' => $taskPerform
+                ];
+            }
 
 //            dd($taskPerform->taskAttached());
-            return $this->successResponse(['task'=>$task,'taskPerform'=>$taskPerform], 'Task fetched successfully', Response::HTTP_OK);
+            return $this->successResponse($response, 'Task fetched successfully', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -743,13 +801,13 @@ class TaskController extends Controller
                 return $this->errorResponse("Task was completed. You can't perform it",null, Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $alreadySubmitted = TaskPerformer::where('user_id', $user->id)
-                ->where('task_id', $request->task_id)
-                ->exists();
-
-            if ($alreadySubmitted) {
-                return $this->errorResponse('This task already submitted.',null, Response::HTTP_CONFLICT);
-            }
+//            $alreadySubmitted = TaskPerformer::where('user_id', $user->id)
+//                ->where('task_id', $request->task_id)
+//                ->exists();
+//
+//            if ($alreadySubmitted) {
+//                return $this->errorResponse('This task already submitted.',null, Response::HTTP_CONFLICT);
+//            }
 
             DB::beginTransaction();
 

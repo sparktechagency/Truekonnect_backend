@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             UserSeed::class,
             TaskSaveSeed::class,
             TaskPerformerSeed::class,
+            SupportTicketSeed::class,
             TaskFileSeed::class,
         ]);
     }

@@ -69,25 +69,42 @@ class SupportController extends Controller
            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function allPendingTickets()
+    public function allPendingTickets(Request $request)
     {
         try {
-            $tickets = SupportTicket::with('ticketcreator:id,name,email,phone,avatar,role')->where('status', 'pending')
+            $data = $request->validate([
+                'per_page' => 'nullable|integer',
+                'search'   => 'nullable|string',
+            ]);
+
+            $perPage = $data['per_page'] ?? 10;
+            $search  = $data['search'] ?? null;
+
+            $tickets = SupportTicket::with([
+                'ticketcreator:id,name,email,phone,avatar,role,country_id',
+                'ticketcreator.country:id,name,flag'
+            ])
+                ->where('status', 'pending')
+                ->when($search, function ($q) use ($search) {
+                    $q->whereHas('ticketcreator', function ($creatorQuery) use ($search) {
+                        $creatorQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                })
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->paginate($perPage);
 
-            if ($tickets->isEmpty()) {
-                return $this->successResponse($tickets,'No pending tickets found.',Response::HTTP_OK);
-            }
+            $message = $tickets->isEmpty() ? 'No pending tickets found.' : 'Pending tickets found.';
 
-            return $this->successResponse($tickets,'Pending tickets found.',Response::HTTP_OK);
+            return $this->successResponse($tickets, $message, Response::HTTP_OK);
 
         } catch (JWTException $e) {
-            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         } catch (Exception $e) {
-            return $this->errorResponse('Something went wrong ',$e->getMessage(),Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
     public function answerTicket(Request $request, $id)
     {
         DB::beginTransaction();
@@ -157,10 +174,11 @@ class SupportController extends Controller
 
             // Validate reason
             $validated = $request->validate([
-                'reason' => 'required|string|min:5',
+                'reason' => 'nullable|string|min:5',
             ]);
 
             $ticket = SupportTicket::find($ticket_id);
+//            dd($ticket);
             if (!$ticket) {
                 return $this->errorResponse('Ticket not found',null,Response::HTTP_NOT_FOUND);
             }
@@ -171,11 +189,11 @@ class SupportController extends Controller
             }
 //            else{
                 $ticket->status = 'admin_review';
-                $ticket->admin_reason = $validated['reason'];
+//                $ticket->admin_reason = $validated['reason'];
                 $ticket->save();
 
                 $title = 'Ticket Moved to Admin';
-                $body = 'Your support ticket has been moved to admin review. Reason: '. $ticket->admin_reason;
+                $body = 'Your support ticket has been moved to admin review. ';
 
                 $ticket->ticketcreator->notify(new UserNotification($title, $body));
 

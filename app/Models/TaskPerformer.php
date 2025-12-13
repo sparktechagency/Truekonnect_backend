@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class TaskPerformer extends Model
 {
@@ -19,6 +20,11 @@ class TaskPerformer extends Model
         public function engagement(){
                 return $this->hasOneThrough(SocialMediaService::class,Task::class,'id','id', 'task_id','sms_id');
         }
+
+    public function socialTask(): HasOneThrough
+    {
+        return $this->hasOneThrough(SocialMedia::class,Task::class,'id','id','task_id','sm_id');
+    }
         public function creator(){
                 return $this->hasOneThrough(User::class,Task::class,'id','id', 'task_id','user_id');
         }
@@ -29,6 +35,19 @@ class TaskPerformer extends Model
         {
             return $this->belongsTo(User::class,'verified_by');
         }
+
+        public function social(){
+            return $this->hasOneThrough(
+                SocialAccount::class,
+                User::class,
+                'id',
+                'user_id',
+                'user_id',
+                'id'
+            )->where('social_accounts.status', 'verified');
+        }
+
+
         public function taskAttached(){
                 return $this->hasMany(TaskFile::class,'tp_id','id');
         }

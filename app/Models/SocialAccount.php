@@ -6,7 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class SocialAccount extends Model
 {
-    protected $fillable=['user_id','sm_id','profile_name','profile_image','note','verification_by','rejection_reason'];
+    protected $fillable=['user_id','sm_id',
+        'profile_name',
+        'profile_image',
+        'note',
+        'verification_by',
+        'rejection_reason'
+    ];
     public function social()
     {
         return $this->belongsTo(SocialMedia::class, 'sm_id');
