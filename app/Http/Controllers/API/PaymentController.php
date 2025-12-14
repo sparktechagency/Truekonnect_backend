@@ -211,7 +211,7 @@ class PaymentController extends Controller
                         $referrer = User::find($user->referral_id);
                         if ($referrer) {
                             $bonus = $payment->amount * 0.10;
-                            $referrer->increment('balance', $bonus);
+                            $referrer->increment('ref_income', $bonus);
 
                             $title = 'Referral Bonus Received';
                             $body = 'You received 10% bonus from ' . $user->name . "'s first deposit: " . $bonus;
@@ -237,9 +237,9 @@ class PaymentController extends Controller
                     $referrer = User::find($user->referral_id);
                     if ($referrer) {
                         $bonus = $withdrawal->amount * 0.05;
-                        $referrer->increment('balance', $bonus);
+                        $referrer->increment('ref_income', $bonus);
 
-                        // Notify referrer
+
                         $title = 'Referral Bonus Received';
                         $body = 'You received 5% bonus from ' . $user->name . "'s first withdrawal: " . $bonus;
                         $referrer->notify(new UserNotification($title, $body));

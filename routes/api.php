@@ -87,7 +87,7 @@ Route::prefix('app')->group(function () {
         });
     });
     Route::controller(UserLeaderboard::class)->group(function () {
-        Route::get('performer/leaderboard','performerLeaderboard');
+        Route::get('leaderboard','performerLeaderboard');
     });
     Route::controller(PaymentController::class)->group(function () {
         Route::post('/performer-payment', 'PayoutToPerformer');

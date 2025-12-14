@@ -35,6 +35,7 @@ class User extends Authenticatable implements JWTSubject
         'otp_expires_at',
         'avatar',
         'earn_token',
+        'ref_income',
         'convert_token'
     ];
 

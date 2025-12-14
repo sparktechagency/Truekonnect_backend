@@ -181,8 +181,9 @@ class AuthController extends Controller
     public function myProfile()
     {
         try {
-            $user =JWTAuth::parseToken()->authenticate();
+            $user = JWTAuth::parseToken()->authenticate();
 
+            $userDetails = User::with(['country:id'])->find($user->id);
             $referralCode = url('/ref/' . $user->referral_code);
 //            $response = null;
 //            if (Auth::user()->role == 'reviewer'){
@@ -196,22 +197,16 @@ class AuthController extends Controller
 //                    'total_pending_order' => $totalPendingdOrder,
 //                ];
 //            }
-            $payment = Payment::with('user:id,name,email,avatar')
-                ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
-                ->where('status', 'completed')
-                ->orderBy('created_at')
-                ->get()
-                ->unique('user_id');
+            $payment = User::where('referral_id',Auth::id())->where('role','brand')->get(['id','name','avatar']);
+//                ->unique('user_id');
 
-            $referralsWithdrawals = Withdrawal::with('user:id,name,email,avatar')
-                ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
-                ->where('status', 'completed')
-                ->orderBy('created_at')
-                ->get()
-                ->unique('user_id');
+            $referralsWithdrawals = User::where('referral_id',Auth::id())->where('role','performer')->get(['id','name','avatar']);
+//                ->unique('user_id');
 
+            $total = User::where('referral_id',Auth::id())->where('role','brand')->count() + User::where('referral_id',Auth::id())->where('role','performer')->count();
 
-            return $this->successResponse(['user'=>$user->only(['avatar', 'name', 'email', 'phone','referral_code']),'referral_link'=>$referralCode,'creator'=>$payment,'performer'=>$referralsWithdrawals], 'User Successfully Login', Response::HTTP_OK);
+            $user->total_ref = $total;
+            return $this->successResponse(['user'=>$userDetails,'referral_link'=>$referralCode,'creator'=>$payment,'performer'=>$referralsWithdrawals], 'User Successfully Login', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }

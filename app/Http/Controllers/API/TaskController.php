@@ -1130,7 +1130,7 @@ class TaskController extends Controller
                                 });
                         });
                     })
-                    ->orderBy('created_at', 'desc')
+                    ->orderBy('updated_at', 'desc')->latest()
                     ->paginate($perPage);
 
                 $tasks->getCollection()->transform(function ($item) use ($status) {
@@ -1155,7 +1155,7 @@ class TaskController extends Controller
                                 });
                         });
                     })
-                    ->orderBy('created_at', 'desc')
+                    ->orderBy('updated_at', 'desc')->latest()
                     ->paginate($perPage);
 
                 $taskPerform->getCollection()->transform(function ($item) use ($status) {
@@ -1180,6 +1180,7 @@ class TaskController extends Controller
                                 });
                         });
                     })
+                    ->orderBy('updated_at', 'desc')
                     ->paginate($perPage);
 
                 $ticketSupport->getCollection()->transform(function ($item) use ($status) {
@@ -1306,14 +1307,32 @@ class TaskController extends Controller
         }
     }
 
-    public function adminTaskDetails($id)
+    public function adminTaskDetails(Request $request, $id)
     {
         try {
-            $task = Task::with(['country:id,name,flag','social:id,name,icon_url','reviewer:id,name,email,phone,country_id,avatar','reviewer.country:id,name','engagement:id,engagement_name','performers.taskAttached','taskFiles'])->find($id);
+            $data = $request->validate([
+                'type' => 'nullable|string'
+            ]);
+            if (($data['type']) ?? null == 'user') {
+                $support = SupportTicket::with('reviewer')->find($id);
+                return $this->successResponse($support, 'Task details.', Response::HTTP_OK);
+            }
+            else{
+                $task = Task::with(['country:id,name,flag',
+                    'creator',
+                    'social:id,name,icon_url',
+                    'reviewer:id,name,email,phone,country_id,avatar',
+                    'reviewer.country:id,name',
+                    'engagement',
+                    'performers.taskAttached',
+                    'taskFiles', 'users', 'socialAccount'
+                ])->find($id);
+                return $this->successResponse($task, 'Task details.', Response::HTTP_OK);
+            }
 
-            $support = SupportTicket::find($id);
 
-            return $this->successResponse($task, 'Task details.', Response::HTTP_OK);
+
+
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -1401,14 +1420,14 @@ class TaskController extends Controller
             $task = TaskPerformer::findOrFail($id);
 
 
-            if ($task->status === 'completed') {
+            if ($task->status === 'Completed') {
                 return $this->errorResponse('This task is already approved.',null, Response::HTTP_CONFLICT);
             }
-            if ($task->status === 'rejected') {
+            if ($task->status === 'Rejected') {
                 return $this->errorResponse('This task is already rejected.',null, Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
-            if ($task->status === 'admin_review') {
+            if ($task->status === 'Admin_review') {
                 $task->status = 'rejected';
                 $task->verified_by = $user->id;
                 $task->rejection_reason = $request->rejection_reason;

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class Task extends Model
 {
@@ -30,7 +31,7 @@ class Task extends Model
     }
 
     public function performers(){
-        return $this->hasMany(TaskPerformer::class, 'task_id', 'id');
+        return $this->hasOne(TaskPerformer::class, 'task_id', 'id');
     }
 
     public function users(){
@@ -46,11 +47,16 @@ class Task extends Model
         return $this->hasManyThrough(
             TaskFile::class,
             TaskPerformer::class,
-            'task_id',  // Foreign key on TaskPerformer
-            'tp_id',    // Foreign key on TaskFile
-            'id',       // Local key on Task
-            'id'        // Local key on TaskPerformer
+            'task_id',
+            'tp_id',
+            'id',
+            'id'
         );
+    }
+
+    public function socialAccount(): HasOneThrough
+    {
+        return $this->hasOneThrough(SocialAccount::class,TaskPerformer::class,'task_id','user_id','id','user_id');
     }
 
     public function tasksave()
