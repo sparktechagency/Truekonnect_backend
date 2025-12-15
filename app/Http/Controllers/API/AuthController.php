@@ -183,7 +183,7 @@ class AuthController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            $userDetails = User::with(['country:id'])->find($user->id);
+            $userDetails = User::with('country')->where('id', $user->id)->first();
             $referralCode = url('/ref/' . $user->referral_code);
 //            $response = null;
 //            if (Auth::user()->role == 'reviewer'){
@@ -205,7 +205,7 @@ class AuthController extends Controller
 
             $total = User::where('referral_id',Auth::id())->where('role','brand')->count() + User::where('referral_id',Auth::id())->where('role','performer')->count();
 
-            $user->total_ref = $total;
+            $userDetails->total_ref = $total;
             return $this->successResponse(['user'=>$userDetails,'referral_link'=>$referralCode,'creator'=>$payment,'performer'=>$referralsWithdrawals], 'User Successfully Login', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);

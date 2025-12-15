@@ -1314,7 +1314,7 @@ class TaskController extends Controller
                 'type' => 'nullable|string'
             ]);
             if (($data['type']) ?? null == 'user') {
-                $support = SupportTicket::with('reviewer')->find($id);
+                $support = SupportTicket::with(['reviewer','reviewer.country'])->find($id);
                 return $this->successResponse($support, 'Task details.', Response::HTTP_OK);
             }
             else{
@@ -1495,43 +1495,171 @@ class TaskController extends Controller
             if (!$check){
                 return $this->errorResponse('Task not found.',null, Response::HTTP_NOT_FOUND);
             }
-            $task = Task::with(['reviewer:id,name,email,phone,country_id','reviewer.country:id,name','country:id,name,flag'])->where('tasks.id', $taskId)
+            $task = Task::with(['reviewer','reviewer.country','country','engagement','social'])->where('tasks.id', $taskId)
                 ->first();
 
-            $isCompleted = ($task->quantity == $task->performed);
-            $status = $isCompleted ? 'Complete Task' : 'Active Task';
-
-            $response = [
-                $status => $task,
-            ];
-
-            if ($isCompleted) {
-                $response['Total Performed Task'] = $task->performed;
-                $response['Token Distribution'] = $task->token_distribution ?? 0;
+            if ($task->performed == $task->quantity) {
+                $task->status = 'completed';
             }
-
-            if ($task->status === 'rejected') {
-                $response['Rejected Task'] = $task->rejection_reason;
+            elseif ($task->status === 'rejected') {
+                $task->status = 'rejected';
+            }else{
+                $task->status = 'ongoing';
             }
+//            if ($task->quantity > $task->performed){
+//                $task->status = 'ongoing';
+//                $task->progress = ($task->performed / $task->quantity) * 100;
+//            }elseif($task->quantity == $task->performed){
+//                $task->status = 'completed';
+//            }else{
+//                $task->status = 'rejected';
+//            }
 
-            return $this->successResponse($response, 'Task details', Response::HTTP_OK);
+//            $isCompleted = ($task->quantity == $task->performed);
+//            $status = $isCompleted ? 'Complete Task' : 'Active Task';
+//
+//            $response = [
+//                $status => $task,
+//            ];
+//
+//            if ($isCompleted) {
+//                $response['Total Performed Task'] = $task->performed;
+//                $response['Token Distribution'] = $task->token_distribution ?? 0;
+//            }
+//
+//            if ($task->status === 'rejected') {
+//                $response['Rejected Task'] = $task->rejection_reason;
+//            }
+
+            return $this->successResponse($task, 'Task details', Response::HTTP_OK);
         }
         catch (\Exception $e) {
             return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    public function orderManagement()
+    public function orderManagement(Request $request)
     {
         try {
-            $completedOrder = TaskPerformer::with(['performer:id,name','task:id,sms_id','task.engagement:id,engagement_name'])->where('status', 'completed')->paginate(10);
+            $data = $request->validate([
+                'search' => 'nullable|string',
+                'status' => 'required',
+                'tags'=>'required'
+            ]);
+            $search = $data['search'] ?? null;
+            if ($data['tags']=='task_management') {
+                if ($data['status'] == 'completed') {
+                    $completeTask = Task::with(['creator', 'engagement'])->whereColumn('quantity', '=', 'performed')
+                        ->when($search, function($query, $search) {
+                            $query->where(function($q) use ($search) {
+                                $q->where('description', 'like', "%{$search}%")
+                                    ->orWhere('link', 'like', "%{$search}%");
 
-            $rejectedOrder = TaskPerformer::with(['performer:id,name','task:id,sms_id','task.engagement:id,engagement_name'])->where('status', 'rejected')->paginate(10);
+                                $q->orWhereHas('creator', function($q2) use ($search) {
+                                    $q2->where('name', 'like', "%{$search}%");
+                                    $q2->orWhere('email', 'like', "%{$search}%");
+                                });
 
-            return $this->successResponse([
-                'Completed Order' => $completedOrder,
-                'Rejected Order' => $rejectedOrder
-            ], 'All Orders', Response::HTTP_OK);
+                                $q->orWhereHas('engagement', function($q3) use ($search) {
+                                    $q3->where('engagement_name', 'like', "%{$search}%");
+                                });
+                            });
+                        })->paginate(10);
+                    $completeTask->status = 'completed';
+                    return $this->successResponse($completeTask, 'All Orders', Response::HTTP_OK);
+                } elseif ($data['status'] == 'rejected') {
+                    $rejected = Task::with(['creator', 'engagement'])->where('status', 'rejected')
+                        ->when($search, function($query, $search) {
+                            $query->where(function($q) use ($search) {
+                                $q->where('description', 'like', "%{$search}%")
+                                    ->orWhere('link', 'like', "%{$search}%");
+
+                                $q->orWhereHas('creator', function($q2) use ($search) {
+                                    $q2->where('name', 'like', "%{$search}%");
+                                    $q2->orWhere('email', 'like', "%{$search}%");
+                                });
+
+                                $q->orWhereHas('engagement', function($q3) use ($search) {
+                                    $q3->where('engagement_name', 'like', "%{$search}%");
+                                });
+                            });
+                        })->paginate(10);
+                    $rejected->status = 'rejected';
+                    return $this->successResponse($rejected, 'All Orders', Response::HTTP_OK);
+                } elseif ($data['status'] == 'ongoing') {
+                    $activeTask = Task::with(['creator', 'engagement'])->whereColumn('quantity', '>', 'performed')
+                        ->when($search, function($query, $search) {
+                            $query->where(function($q) use ($search) {
+                                $q->where('description', 'like', "%{$search}%")
+                                    ->orWhere('link', 'like', "%{$search}%");
+
+                                $q->orWhereHas('creator', function($q2) use ($search) {
+                                    $q2->where('name', 'like', "%{$search}%");
+                                    $q2->orWhere('email', 'like', "%{$search}%");
+                                });
+
+                                $q->orWhereHas('engagement', function($q3) use ($search) {
+                                    $q3->where('engagement_name', 'like', "%{$search}%");
+                                });
+                            });
+                        })->paginate(10);
+                    $activeTask->status = 'ongoing';
+                    return $this->successResponse($activeTask, 'All Orders', Response::HTTP_OK);
+                }
+
+            }
+            elseif ($data['tags']=='order_management') {
+                if ($data['status'] == 'completed_order') {
+                    $completedOrder = TaskPerformer::with(['performer', 'task', 'task.engagement'])->where('status', 'completed')
+                        ->when($search, function ($query, $search) {
+                            $query->where(function ($q) use ($search) {
+
+                                // Search by performer
+                                $q->whereHas('performer', function ($p) use ($search) {
+                                    $p->where('name', 'like', "%{$search}%");
+                                    $p->orWhere('email', 'like', "%{$search}%");
+                                })
+
+                                    // OR search by task
+//                                    ->orWhereHas('task', function ($t) use ($search) {
+//                                        $t->where('title', 'like', "%{$search}%");
+//                                    })
+
+                                    // OR search by task engagement
+                                    ->orWhereHas('task.engagement', function ($e) use ($search) {
+                                        $e->where('engagement_name', 'like', "%{$search}%");
+                                    });
+                            });
+                        })->paginate(10);
+                    $response = $completedOrder;
+                    return $this->successResponse($completedOrder, 'All Orders', Response::HTTP_OK);
+                } elseif ($data['status'] == 'rejected_order') {
+                    $rejectedOrder = TaskPerformer::with(['performer', 'task', 'task.engagement'])->where('status', 'rejected')
+                        ->when($search, function ($query, $search) {
+                            $query->where(function ($q) use ($search) {
+
+                                // Search by performer
+                                $q->whereHas('performer', function ($p) use ($search) {
+                                    $p->where('name', 'like', "%{$search}%");
+                                    $p->orWhere('email', 'like', "%{$search}%");
+                                })
+
+                                    // OR search by task
+//                                    ->orWhereHas('task', function ($t) use ($search) {
+//                                        $t->where('title', 'like', "%{$search}%");
+//                                    })
+
+                                    // OR search by task engagement
+                                    ->orWhereHas('task.engagement', function ($e) use ($search) {
+                                        $e->where('engagement_name', 'like', "%{$search}%");
+                                    });
+                            });
+                        })->paginate(10);
+                    $response = $rejectedOrder;
+                    return $this->successResponse($rejectedOrder, 'All Orders', Response::HTTP_OK);
+                }
+            }
+            return $this->errorResponse('Something went wrong. ',null, Response::HTTP_INTERNAL_SERVER_ERROR);
         }
         catch (\Exception $e) {
             return $this->errorResponse('Something went wrong. ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -1542,11 +1670,12 @@ class TaskController extends Controller
     {
         try {
             $order = TaskPerformer::with([
-                'task:id,sm_id,sms_id,total_token,created_at,link',
-                'task.social:id,name',
-                'taskAttached:id,tp_id,file_url',
-                'reviewer:id,name,email,phone,country_id',
-                'reviewer.country:id,name,flag'
+                'task',
+                'task.social',
+                'taskAttached',
+                'reviewer',
+                'reviewer.country',
+                'engagement'
             ])->where('task_performers.id', $orderId)
                 ->paginate(10);
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class SupportTicket extends Model
 {
@@ -22,5 +23,10 @@ class SupportTicket extends Model
     }
     public function reviewer(){
         return $this->belongsTo(User::class,'reviewed_by');
+    }
+
+    public function country(): HasOneThrough
+    {
+        return $this->hasOneThrough(Countrie::class,User::class,'id','id','user_id','country_id');
     }
 }
