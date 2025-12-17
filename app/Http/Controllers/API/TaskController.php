@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Models\SocialAccount;
+use App\Models\SocialMedia;
 use App\Models\SupportTicket;
 use App\Models\Task;
 use App\Models\User;
@@ -10,6 +11,7 @@ use App\Models\Countrie;
 use App\Models\TaskFile;
 use App\Models\TaskSave;
 use App\Notifications\UserNotification;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -26,12 +28,37 @@ use Illuminate\Support\Facades\Validator;
 class TaskController extends Controller
 {
     //App For Brand
+
+    public function engagementType(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'sm_id' => 'required',
+            ]);
+
+            $social = SocialMediaService::where('sm_id',$data['sm_id'])->where('country_id',Auth::user()->country_id)->get();
+
+            return $this->successResponse($social,'All Engagement Types',200);
+        }catch (\Exception $exception){
+            return $this->errorResponse('Something went wrong',$exception->getMessage(),500);
+        }
+    }
+    public function socialMedia()
+    {
+        try {
+            $sm = SocialMedia::all();
+
+            return $this->successResponse($sm,'All Engagement Types',200);
+        }catch (\Exception $exception){
+            return $this->errorResponse('Something went wrong',$exception->getMessage(),500);
+        }
+    }
     public function createTask(Request $request){
         DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'sm_id'       => 'required|integer|exists:social_media,id',
-                'country_id'  => 'required|integer|exists:countries,id',
+//                'country_id'  => 'required|integer|exists:countries,id',
                 'sms_id'      => 'required|integer|exists:social_media_services,id',
                 'quantity'    => 'required|integer|min:'.$request->min_quantity,
                 'description' => 'required|string',
@@ -47,7 +74,7 @@ class TaskController extends Controller
             }
 
             $sms=SocialMediaService::findOrFail($request->sms_id)->first();
-            $country=Countrie::findOrFail($request->country_id)->first();
+            $country=Countrie::findOrFail(Auth::user()->country_id)->first();
 
             $totalprice=$sms->unit_price*$request->quantity;
             $performerAmount=$totalprice/2;
@@ -61,7 +88,7 @@ class TaskController extends Controller
                 'sm_id'             => $request->sm_id,
                 'sms_id'            => $request->sms_id,
                 'user_id'           => $user->id,
-                'country_id'        => $request->country_id,
+                'country_id'        => Auth::user()->country_id,
                 'quantity'          => $request->quantity,
                 'description'       => $request->description,
                 'link'              => $request->link,
@@ -88,26 +115,44 @@ class TaskController extends Controller
             return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function myTask(){
+    public function myTask(Request $request){
         try {
-            $tasks = Task::with([
-                'country:id,name,flag,currency_code',
-                'social:id,name,icon_url',
-                'engagement:id,engagement_name',
-                'creator:id,name,avatar'
-            ])->whereIn('status', ['pending','verifyed','rejected','completed','admin_review'])->orderBy('created_at', 'desc')->where('user_id',Auth::id())->paginate(10,[
-                'id',
-                'sm_id','country_id','sms_id','user_id',
-                'quantity',
-                'description',
-                'link',
-                'performed',
-                'per_perform',
-                'token_distributed',
-                'total_price',
-                'status',
-                'created_at'
+            $data = $request->validate([
+                'status' => 'nullable|string',
+                'start_date' => 'nullable|date',
+                'end_date' => 'nullable|date',
             ]);
+
+            $startDate = !empty($data['start_date'])
+                ? Carbon::parse($data['start_date'])->startOfDay()
+                : Carbon::create(1970, 1, 1, 0, 0, 0);
+
+            $endDate = !empty($data['start_date'])
+                ? Carbon::parse($data['start_date'])->endOfDay()
+                : Carbon::create(2100, 12, 31, 23, 59, 59);
+
+                $tasks = Task::with([
+                    'country:id,name,flag,currency_code',
+                    'social:id,name,icon_url',
+                    'engagement:id,engagement_name',
+                    'creator:id,name,avatar'
+                ])->where('status', $data['status'] ?? 'pending')->orderBy('created_at', 'desc')->where('user_id', Auth::id())
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->paginate(10, [
+                    'id',
+                    'sm_id', 'country_id', 'sms_id', 'user_id',
+                    'quantity',
+                    'description',
+                    'link',
+                    'performed',
+                    'per_perform',
+                    'token_distributed',
+                    'total_price',
+                    'status',
+                    'created_at'
+                ]);
+
+
 
             return $this->successResponse($tasks, 'All tasks fetched successfully', Response::HTTP_OK);
         } catch (\Exception $e) {
@@ -117,7 +162,7 @@ class TaskController extends Controller
     public function myTaskDetails(Request $request,$id)
     {
         try {
-            $task = Task::with(['country:id,name,flag','social:id,name'])->where('id',$id)->where('user_id',Auth::id())->first();
+            $task = Task::with(['country:id,name,flag','social','engagement'])->where('id',$id)->where('user_id',Auth::id())->first();
             return $this->successResponse($task, 'Task fetched successfully', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -1505,6 +1550,7 @@ class TaskController extends Controller
                 $task->status = 'rejected';
             }else{
                 $task->status = 'ongoing';
+                $task->progress = ($task->performed / $task->quantity) * 100;
             }
 //            if ($task->quantity > $task->performed){
 //                $task->status = 'ongoing';
@@ -1549,7 +1595,7 @@ class TaskController extends Controller
             $search = $data['search'] ?? null;
             if ($data['tags']=='task_management') {
                 if ($data['status'] == 'completed') {
-                    $completeTask = Task::with(['creator', 'engagement'])->whereColumn('quantity', '=', 'performed')
+                    $completeTask = Task::with(['creator', 'engagement','reviewer'])->whereColumn('quantity', '=', 'performed')
                         ->when($search, function($query, $search) {
                             $query->where(function($q) use ($search) {
                                 $q->where('description', 'like', "%{$search}%")
@@ -1673,18 +1719,19 @@ class TaskController extends Controller
                 'task',
                 'task.social',
                 'taskAttached',
+                'country',
                 'reviewer',
                 'reviewer.country',
-                'engagement'
+                'engagement',
+                'creator'
             ])->where('task_performers.id', $orderId)
-                ->paginate(10);
+                ->first();
 
-            $order = $order->map(function ($item) {
-                if ($item->task_status === 'rejected') {
-                    $item->rejected_reason = $item->rejection_reason;
+
+                if ($order->task_status === 'rejected') {
+                    $order->rejected_reason = $order->rejection_reason;
+
                 }
-                return $item;
-            });
 
             return $this->successResponse($order, 'All Orders', Response::HTTP_OK);
         }

@@ -105,6 +105,8 @@ Route::prefix('app')->group(function () {
         });
         Route::prefix('task')->controller(TaskController::class)->group(function () {
             Route::post('create','createTask');
+            Route::get('social/media','socialMedia');
+            Route::get('engagement/type','engagementType');
             Route::get('all','myTask');
             Route::get('details/{id}','myTaskDetails');
             Route::put('edit/{id}','editTask');

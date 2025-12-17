@@ -145,7 +145,7 @@ class AppController extends Controller
             $complete = Task::where('user_id', $user->id)->whereColumn('quantity','=','performed')->count();
             $ongoing = Task::where('user_id', $user->id)->whereColumn('quantity','>','performed')->count();
             $recentTask = Task::with('social:id,name,icon_url')->where('user_id', $user->id)->whereColumn('quantity','>','performed')
-                ->get(['id','sm_id']);
+                ->get(['id','sm_id','quantity','performed']);
             $payment = Payment::with('user:id,name,email,avatar')
                 ->whereHas('user', fn($q) => $q->where('referral_id', $user->id))
                 ->where('status', 'completed')
@@ -179,9 +179,9 @@ class AppController extends Controller
                 'ongoing' => $ongoing,
                 'total_users_paid' => $totaltaskPerformerGotPaid,
                 'recent_tasks' => $recentTask,
-                'totaltaskPerformerGotPaid' => $totaltaskPerformerGotPaid,
-                'taskPerformerGotPaid' => $taskPerformerGotPaid,
-                'totalTokenDistribution' => $totalTokenDistribution,
+//                'totaltaskPerformerGotPaid' => $totaltaskPerformerGotPaid,
+//                'taskPerformerGotPaid' => $taskPerformerGotPaid,
+//                'totalTokenDistribution' => $totalTokenDistribution,
             ],'Brand home page updated successfully.', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
