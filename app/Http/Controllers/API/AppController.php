@@ -142,7 +142,7 @@ class AppController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            $complete = Task::where('user_id', $user->id)->whereColumn('quantity','=','performed')->count();
+            $complete = Task::where('user_id', $user->id)->where('status','completed')->count();
             $ongoing = Task::where('user_id', $user->id)->whereColumn('quantity','>','performed')->count();
             $recentTask = Task::with('social:id,name,icon_url')->where('user_id', $user->id)->whereColumn('quantity','>','performed')
                 ->get(['id','sm_id','quantity','performed']);
@@ -193,12 +193,12 @@ class AppController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->whereColumn('quantity','=','performed')->
-            get(['id','sm_id','performed']);
+            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->where('status','completed')->
+            paginate(10,['id','sm_id','performed']);
 
-            return $this->successResponse([
-                'complete' => $completeOrders,
-            ],"Completed tasks", Response::HTTP_OK);
+            return $this->successResponse(
+                $completeOrders
+            ,"Completed tasks", Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong ',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }

@@ -109,7 +109,8 @@ Route::prefix('app')->group(function () {
             Route::get('engagement/type','engagementType');
             Route::get('all','myTask');
             Route::get('details/{id}','myTaskDetails');
-            Route::put('edit/{id}','editTask');
+            Route::get('who/got/paid','whoGotPaid');
+            Route::post('edit/{id}','editTask');
         });
         Route::controller(UserLeaderboard::class)->group(function () {
             Route::get('brand/leaderboard','brandLeaderboard');
@@ -151,7 +152,7 @@ Route::prefix('reviewer')->middleware(ReviewerMiddelware::class)->group(function
     Route::prefix('task')->controller(TaskController::class)->group(function () {
             Route::get('all','allTask');
             Route::put('approved/{id}','approveTask');
-            Route::put('rejected/{id}','rejectTask');
+            Route::post('rejected/{id}','rejectTask');
             Route::put('adminreview/{id}','adminReview');
     });
     Route::prefix('performed-task')->controller(TaskController::class)->group(function () {

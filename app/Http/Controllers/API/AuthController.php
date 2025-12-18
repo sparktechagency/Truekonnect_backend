@@ -141,7 +141,7 @@ class AuthController extends Controller
             );
         }
         if (!$userQuery) {
-            return $this->errorResponse(null,'User not found.', Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('User not found.','User not found.', Response::HTTP_NOT_FOUND);
         }
 
         if ($userQuery->status === 'banned') {

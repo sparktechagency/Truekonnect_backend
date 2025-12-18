@@ -151,7 +151,7 @@ class AdminProfile extends Controller
     public function adminList()
     {
         try {
-            $admin = User::where('role', 'admin')->paginate(10);
+            $admin = User::where('role', 'admin')->latest()->paginate(10);
 
             return $this->successResponse($admin, 'Admin list.', Response::HTTP_OK);
         }

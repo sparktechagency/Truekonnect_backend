@@ -162,10 +162,32 @@ class TaskController extends Controller
     public function myTaskDetails(Request $request,$id)
     {
         try {
-            $task = Task::with(['country:id,name,flag','social','engagement'])->where('id',$id)->where('user_id',Auth::id())->first();
+            $task = Task::with(['country','social','engagement'])->where('id',$id)->where('user_id',Auth::id())->first();
             return $this->successResponse($task, 'Task fetched successfully', Response::HTTP_OK);
         }catch (\Exception $e) {
             return $this->errorResponse('Something went wrong.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function whoGotPaid()
+    {
+        try {
+            $taskPerformer = Task::with(['country','creator','reviewer','performers','engagement','users'])->where('user_id',Auth::id())->where('status','completed')->paginate(10);
+
+            $totalUser = $taskPerformer->count();
+            $totalToken = $taskPerformer->sum('token_distributed');
+
+            $response = [
+                'totalUser' => $totalUser,
+                'totalToken' => $totalToken,
+                'taskPerformer' => $taskPerformer,
+
+            ];
+
+
+            return $this->successResponse($response, 'Task fetched successfully', Response::HTTP_OK);
+        }catch (\Exception $e) {
+            return $this->errorResponse('Something Went Wrong',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function editTask(Request $request, $id){
@@ -298,7 +320,7 @@ class TaskController extends Controller
         }
     }
     public function rejectTask(Request $request, $id){
-        DB::beginTransaction();
+//        DB::beginTransaction();
         try {
 
             $validator = Validator::make($request->all(), [
@@ -313,11 +335,11 @@ class TaskController extends Controller
 
             $task = Task::findOrFail($id);
 
-            if ($task->status === 'rejected') {
+            if ($task->status == 'rejected') {
                 return $this->errorResponse('This task has already been rejected.',null,Response::HTTP_CONFLICT);
             }
 
-            if ($task->status === 'verifyed') {
+            if ($task->status == 'verifyed') {
                 return $this->errorResponse('This task has already been verified.',null,Response::HTTP_CONFLICT);
             }
 
@@ -336,21 +358,21 @@ class TaskController extends Controller
                 return $this->successResponse($task, 'Task rejected successfully.', Response::HTTP_OK);
             }
 
-            DB::commit();
+//            DB::commit();
 
             return $this->errorResponse('Task cannot be rejected in its current state.',null, Response::HTTP_BAD_REQUEST);
 
         } catch (ModelNotFoundException $e) {
-            DB::rollback();
+//            DB::rollback();
             return $this->errorResponse('Task not found.', null,Response::HTTP_NOT_FOUND);
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            DB::rollback();
+//            DB::rollback();
             return $this->errorResponse('Token expired. Please log in again.',$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            DB::rollback();
+//            DB::rollback();
             return $this->errorResponse('Invalid or missing token.',$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         } catch (\Throwable $e) {
-            DB::rollback();
+//            DB::rollback();
             return $this->errorResponse('Something went wrong while rejecting the task.',$e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -1359,8 +1381,18 @@ class TaskController extends Controller
                 'type' => 'nullable|string'
             ]);
             if (($data['type']) ?? null == 'user') {
-                $support = SupportTicket::with(['reviewer','reviewer.country'])->find($id);
-                return $this->successResponse($support, 'Task details.', Response::HTTP_OK);
+//                $support = SupportTicket::with(['reviewer','reviewer.country'])->find($id);
+
+                $task = TaskPerformer::with(['task:*','taskAttached:*','task.engagement:*','reviewer:*','reviewer.country:*','performer:*'])->find($id);
+
+
+                $social = SocialAccount::with('social:*')->where('user_id',$task->user_id)->first();
+
+                $tasks = [
+                    $task,
+                    'social'=>$social,
+                ];
+                return $this->successResponse($tasks, 'Task details.', Response::HTTP_OK);
             }
             else{
                 $task = Task::with(['country:id,name,flag',
