@@ -60,10 +60,10 @@ class TaskController extends Controller
                 'sm_id'       => 'required|integer|exists:social_media,id',
 //                'country_id'  => 'required|integer|exists:countries,id',
                 'sms_id'      => 'required|integer|exists:social_media_services,id',
-                'quantity'    => 'required|integer|min:'.$request->min_quantity,
+                'quantity'    => 'required|integer',
                 'description' => 'required|string',
                 'link'        => 'required|url',
-                'min_quantity'=> 'required|numeric|min:1',
+//                'min_quantity'=> 'required|numeric|min:1',
             ]);
             if ($validator->fails()) {
                 return response()->json([
@@ -74,6 +74,10 @@ class TaskController extends Controller
             }
 
             $sms=SocialMediaService::findOrFail($request->sms_id)->first();
+
+            if ($sms->min_quantity > $request->quantity) {
+                return $this->errorResponse('Please select a quantity of at least '.$sms->min_quantity.' to continue.',null,Response::HTTP_BAD_REQUEST);
+            }
             $country=Countrie::findOrFail(Auth::user()->country_id)->first();
 
             $totalprice=$sms->unit_price*$request->quantity;
@@ -1186,7 +1190,12 @@ class TaskController extends Controller
 
             if ($status === 'task') {
 
-                $tasks = Task::with(['country', 'social', 'engagement', 'reviewer', 'reviewerCountry'])
+                $tasks = Task::with(['country',
+                    'social',
+                    'engagement',
+//                    'reviewer',
+//                    'reviewerCountry',
+                    'creator'])
                     ->where('status', 'admin_review')
                     ->when($search, function ($q) use ($search) {
                         $q->where(function ($sub) use ($search) {
@@ -1383,16 +1392,16 @@ class TaskController extends Controller
             if (($data['type']) ?? null == 'user') {
 //                $support = SupportTicket::with(['reviewer','reviewer.country'])->find($id);
 
-                $task = TaskPerformer::with(['task:*','taskAttached:*','task.engagement:*','reviewer:*','reviewer.country:*','performer:*'])->find($id);
+                $task = TaskPerformer::with(['task:*','taskAttached:*','engagement:*','reviewer:*','reviewer.country:*','country:*','creator:*','taskPerformerSocialAc:*','socialTask:*'])->find($id);
 
 
                 $social = SocialAccount::with('social:*')->where('user_id',$task->user_id)->first();
 
                 $tasks = [
-                    $task,
-                    'social'=>$social,
+//                    $task->social => $social,
+//                    'social'=>$social,
                 ];
-                return $this->successResponse($tasks, 'Task details.', Response::HTTP_OK);
+                return $this->successResponse($task, 'Task details.', Response::HTTP_OK);
             }
             else{
                 $task = Task::with(['country:id,name,flag',

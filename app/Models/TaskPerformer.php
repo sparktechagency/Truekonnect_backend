@@ -53,7 +53,7 @@ class TaskPerformer extends Model
         }
 
          public function taskPerformerSocialAc(){
-             return $this->hasManyThrough(
+             return $this->hasOneThrough(
                  SocialAccount::class,
                  User::class,
                  'id',
