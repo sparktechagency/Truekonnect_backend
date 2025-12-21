@@ -25,12 +25,12 @@ class ContentControll extends Controller
     {
         try {
             $data = $request->validate([
-                'link' => 'required|mimetypes:video/mp4,video/avi,video/mpeg,video/quicktime|max:1048576'
+                'link' => 'required|string'
             ]);
 
-            $data['link'] = $this->uploadFile($request->file('link'),'video/');
-            $promoLink = PromoLink::create($data);
-
+//            $data['link'] = $this->uploadFile($request->file('link'),'video/');
+            $promoLink = PromoLink::updateOrCreate(['id'=>1],$data);
+//            dd($promoLink);
             return $this->successResponse($promoLink, 'Link Added Successfully', Response::HTTP_CREATED);
         }
         catch (\Exception $e){

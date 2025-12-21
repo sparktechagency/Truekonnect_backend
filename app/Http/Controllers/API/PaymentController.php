@@ -25,7 +25,7 @@ class PaymentController extends Controller
 //            'brand_id'       => 'required|exists:users,id',
 //            'amount'         => 'required|numeric|min:1',
             'network_code'   => 'required|string',
-            'customer_number'=> 'required|string',
+//            'customer_number'=> 'required|string',
 //            'customer_number'=> '0555804252',
             'task_id'        => 'required|exists:tasks,id',
         ]);
@@ -44,7 +44,7 @@ class PaymentController extends Controller
         try {
             $payload = [
 //                'customer_number' => $user->phone,
-                'customer_number' => $request->customer_number,
+                'customer_number' => '0555804252',
                 'amount'          => $info->total_price,
                 'transaction_id'  => $transactionId,
                 'client_id'       => 1358,
