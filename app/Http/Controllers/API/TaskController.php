@@ -671,6 +671,8 @@ class TaskController extends Controller
 //                return $this->errorResponse('Validation Error', $errors, Response::HTTP_BAD_REQUEST);
 //            }
 
+//            dd(TaskPerformer::where('user_id', $user->id)->pluck('task_id'));
+
             $tasksQuery = Task::with([
                 'country:id,name,flag',
                 'social:id,name,icon_url',

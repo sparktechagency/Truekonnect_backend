@@ -265,7 +265,7 @@ class AuthController extends Controller
             DB::commit();
 
             return $this->successResponse([
-                'otp'=>$otp,'otp send'=>$otpSend,'user'=>$login
+                'otp'=>$otp,'otp send'=>$otpSend ?? null,'user'=>$login
             ], 'OTP Send Successfully', Response::HTTP_OK);
 
         } catch (\Exception $e) {
