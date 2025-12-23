@@ -193,7 +193,7 @@ class AppController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->where('status','completed')->
+            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->where('status','completed')->latest()->
             paginate(10,['id','sm_id','performed']);
 
             return $this->successResponse(
@@ -287,7 +287,7 @@ class AppController extends Controller
         try {
             $user=JWTAuth::user();
             $socialMedia=SocialAccount::with('social:id,name,icon_url')
-                        ->where('user_id',$user->id)
+                        ->where('user_id',$user->id)->latest()
 //                        ->select('id','user_id','sm_id','profile_name','verification_by','verified_at','rejection_reason')
                         ->get();
             if ($socialMedia->isEmpty()) {

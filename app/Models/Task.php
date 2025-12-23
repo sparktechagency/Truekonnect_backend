@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 class Task extends Model
 {
     use HasFactory;
-    protected $fillable=['sm_id','sms_id','user_id','country_id','quantity','description','link','per_perform','total_token','token_distributed','unite_price','total_price','note','rejection_reason'];
+    protected $fillable=['sm_id','sms_id','user_id','status','verified_by','country_id','quantity','description','link','per_perform','total_token','token_distributed','unite_price','total_price','note','rejection_reason'];
 
     public function country(){
         return $this->belongsTo(Countrie::class,'country_id');
@@ -30,6 +30,9 @@ class Task extends Model
         return $this->hasOneThrough(Countrie::class, User::class,'id','id','verified_by','country_id')->select('countries.id', 'countries.name', 'countries.flag');
     }
 
+    public function taskperformers(){
+        return $this->hasMany(TaskPerformer::class, 'task_id', 'id');
+    }
     public function performers(){
         return $this->hasOne(TaskPerformer::class, 'task_id', 'id');
     }

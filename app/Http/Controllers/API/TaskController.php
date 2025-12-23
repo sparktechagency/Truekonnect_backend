@@ -36,7 +36,7 @@ class TaskController extends Controller
                 'sm_id' => 'required',
             ]);
 
-            $social = SocialMediaService::where('sm_id',$data['sm_id'])->where('country_id',Auth::user()->country_id)->get();
+            $social = SocialMediaService::where('sm_id',$data['sm_id'])->where('country_id',Auth::user()->country_id)->latest()->get();
 
             return $this->successResponse($social,'All Engagement Types',200);
         }catch (\Exception $exception){
@@ -46,7 +46,7 @@ class TaskController extends Controller
     public function socialMedia()
     {
         try {
-            $sm = SocialMedia::all();
+            $sm = SocialMedia::latest()->get();
 
             return $this->successResponse($sm,'All Engagement Types',200);
         }catch (\Exception $exception){
@@ -80,10 +80,14 @@ class TaskController extends Controller
             }
             $country=Countrie::findOrFail(Auth::user()->country_id)->first();
 
+//            dd($country->token_rate);
+//            dd($sms);
             $totalprice=$sms->unit_price*$request->quantity;
             $performerAmount=$totalprice/2;
-            $perperfrom=$performerAmount/ $request->quantity / $country->token_rate;
+            $perperfrom=($performerAmount/ $request->quantity) / $country->token_rate;
             $totaltoken=$performerAmount/$country->token_rate;
+
+//            dd($totaltoken,$perperfrom,$totalprice,$performerAmount);
             $user=JWTAuth::user();
 
             $allUser = User::where('id','!=',$user->id)->get();
@@ -176,7 +180,8 @@ class TaskController extends Controller
     public function whoGotPaid()
     {
         try {
-            $taskPerformer = Task::with(['country','creator','reviewer','performers','engagement','users'])->where('user_id',Auth::id())->where('status','completed')->paginate(10);
+            $taskPerformer = Task::with(['country','creator','reviewer','performers','engagement','users'])->where('user_id',Auth::id())
+                ->where('status','completed')->latest()->paginate(10);
 
             $totalUser = $taskPerformer->count();
             $totalToken = $taskPerformer->sum('token_distributed');
@@ -673,6 +678,7 @@ class TaskController extends Controller
 
 //            dd(TaskPerformer::where('user_id', $user->id)->pluck('task_id'));
 
+//            $task = Task
             $tasksQuery = Task::with([
                 'country:id,name,flag',
                 'social:id,name,icon_url',
@@ -682,8 +688,11 @@ class TaskController extends Controller
                 ->where('status', 'verifyed')
                 ->whereColumn('quantity', '!=', 'performed')
                 ->where('country_id', $user->country_id)
+                ->whereDoesntHave('taskperformers', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
                 ->orderBy('created_at', 'desc');
-
+//            dd($tasksQuery->get());
 
             if ($search) {
                 $tasksQuery->whereHas('social', function($q) use ($search) {
@@ -724,6 +733,12 @@ class TaskController extends Controller
                     });
                 }
 
+//                foreach ($tasksQuery->get() as $task) {
+//                    $taskPerf = TaskPerformer::where('user_id', $user->id)->where('task_id', $task->id)->exists();
+//
+//
+//                    dd($taskPerf);
+//                }
             $tasks = $tasksQuery->paginate($perPage, [
                 'id',
                 'sm_id',
@@ -869,6 +884,12 @@ class TaskController extends Controller
 
             $user = JWTAuth::parseToken()->authenticate();
             $task = Task::findOrFail($request->task_id);
+
+            $taskPerformer = TaskPerformer::where('user_id', $user->id)->where('task_id',$task->id)->exists();
+
+            if ($task->id = $taskPerformer){
+                return $this->errorResponse(null,'You Already performed this task.', Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
             if ($task->quantity == $task->performed) {
                 return $this->errorResponse("Task was completed. You can't perform it",null, Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -1394,8 +1415,10 @@ class TaskController extends Controller
             if (($data['type']) ?? null == 'user') {
 //                $support = SupportTicket::with(['reviewer','reviewer.country'])->find($id);
 
+
                 $task = TaskPerformer::with(['task:*','taskAttached:*','engagement:*','reviewer:*','reviewer.country:*','country:*','creator:*','taskPerformerSocialAc:*','socialTask:*'])->find($id);
 
+//                dd($task);
 
                 $social = SocialAccount::with('social:*')->where('user_id',$task->user_id)->first();
 
@@ -1653,7 +1676,7 @@ class TaskController extends Controller
                                     $q3->where('engagement_name', 'like', "%{$search}%");
                                 });
                             });
-                        })->paginate(10);
+                        })->latest()->paginate(10);
                     $completeTask->status = 'completed';
                     return $this->successResponse($completeTask, 'All Orders', Response::HTTP_OK);
                 } elseif ($data['status'] == 'rejected') {
@@ -1672,7 +1695,7 @@ class TaskController extends Controller
                                     $q3->where('engagement_name', 'like', "%{$search}%");
                                 });
                             });
-                        })->paginate(10);
+                        })->latest()->paginate(10);
                     $rejected->status = 'rejected';
                     return $this->successResponse($rejected, 'All Orders', Response::HTTP_OK);
                 } elseif ($data['status'] == 'ongoing') {
@@ -1691,7 +1714,7 @@ class TaskController extends Controller
                                     $q3->where('engagement_name', 'like', "%{$search}%");
                                 });
                             });
-                        })->paginate(10);
+                        })->latest()->paginate(10);
                     $activeTask->status = 'ongoing';
                     return $this->successResponse($activeTask, 'All Orders', Response::HTTP_OK);
                 }
@@ -1719,7 +1742,7 @@ class TaskController extends Controller
                                         $e->where('engagement_name', 'like', "%{$search}%");
                                     });
                             });
-                        })->paginate(10);
+                        })->latest()->paginate(10);
                     $response = $completedOrder;
                     return $this->successResponse($completedOrder, 'All Orders', Response::HTTP_OK);
                 } elseif ($data['status'] == 'rejected_order') {
@@ -1743,7 +1766,7 @@ class TaskController extends Controller
                                         $e->where('engagement_name', 'like', "%{$search}%");
                                     });
                             });
-                        })->paginate(10);
+                        })->latest()->paginate(10);
                     $response = $rejectedOrder;
                     return $this->successResponse($rejectedOrder, 'All Orders', Response::HTTP_OK);
                 }

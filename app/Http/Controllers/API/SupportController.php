@@ -91,7 +91,8 @@ class SupportController extends Controller
                             ->orWhere('email', 'like', "%{$search}%");
                     });
                 })
-                ->orderBy('created_at', 'desc')
+                ->latest()
+//                ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
             $message = $tickets->isEmpty() ? 'No pending tickets found.' : 'Pending tickets found.';
@@ -223,6 +224,7 @@ class SupportController extends Controller
             $tickets = SupportTicket::
             with(['ticketcreator:*', 'reviewer:*'])
                 ->where('status', 'admin_review')
+//                ->latest()
                 ->find($id);
 
 //

@@ -114,7 +114,7 @@ class CountryController extends Controller
     public function viewAllCountries()
     {
         try {
-           $countries = Countrie::orderBy('created_at', 'desc')->get();
+           $countries = Countrie::orderBy('created_at', 'desc')->latest()->get();
 
            return $this->successResponse($countries, 'Country list retrieved successfully.', Response::HTTP_OK);
 

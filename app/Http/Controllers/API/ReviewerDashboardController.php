@@ -43,7 +43,7 @@ class ReviewerDashboardController extends Controller
                                 $q3->where('name', 'like', "%{$search}%");
                             });
                     });
-                })
+                })->latest()
                 ->paginate($data['per_page'] ?? 10, ['id', 'user_id', 'sm_id', 'profile_name','note', 'profile_image', 'status']);
 
             return $this->successResponse($sc,'All Verification Request',Response::HTTP_OK);

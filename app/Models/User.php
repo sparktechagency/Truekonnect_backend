@@ -29,6 +29,7 @@ class User extends Authenticatable implements JWTSubject
         'referral_code',
         'balance',
         'country_id',
+        'withdrawal_status',
         'verification_by',
         'rejection_reason',
         'otp',

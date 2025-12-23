@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\Task;
 use App\Models\TaskPerformer;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -69,24 +70,55 @@ class FinancialController extends Controller
 
             $searchValue = trim($data['search'] ?? '');
 
-            // Helper function to get tasks with optional search
-            $getTasksByStatus = function($status) use ($searchValue) {
-                $query = TaskPerformer::with([
-                    'performer:id,name,email,phone,avatar',
-                    'task:id,country_id,sms_id,total_price',
-                    'task.engagement:id,engagement_name',
-                    'task.country:id,name,flag'
-                ])->where('status', $status);
+
+
+
+//                $getTasksByStatus = function ($status) use ($searchValue) {
+//                    $task = Task::with('creator')->first();
+//                    $taskPer = TaskPerformer::with('performer')->first();
+//                    if ($task->creator->id == $taskPer->performer->id) {
+//                        $query = Task::with([
+//                            'creator:id,name,email,phone,avatar',
+////                    'task:id,country_id,sms_id,total_price',
+//                            'engagement:id,engagement_name',
+//                            'country:id,name,flag'
+//                        ])->where('status', $status)->latest();
+//
+//                        if ($searchValue !== '') {
+//                            $query->whereHas('creator', function ($q) use ($searchValue) {
+//                                $q->where('name', 'like', '%' . $searchValue . '%')
+//                                    ->orWhere('email', $searchValue);
+//                            });
+//                        }
+//
+//                        return $query->paginate(10);
+//                    }
+//                };
+
+            $getTasksByStatus = function ($status) use ($searchValue) {
+
+                $query = Task::with([
+                    'creator:id,name,email,phone,avatar',
+                    'engagement:id,engagement_name',
+                    'country:id,name,flag'
+                ])
+                    ->where('status', $status)
+                    ->whereHas('performers', function ($q) {
+                        $q->whereColumn('task_performers.user_id', 'tasks.user_id');
+                    })
+                    ->latest();
 
                 if ($searchValue !== '') {
-                    $query->whereHas('performer', function($q) use ($searchValue) {
-                        $q->where('name', 'like', '%' . $searchValue . '%')
+                    $query->whereHas('creator', function ($q) use ($searchValue) {
+                        $q->where('name', 'like', "%{$searchValue}%")
                             ->orWhere('email', $searchValue);
                     });
                 }
 
                 return $query->paginate(10);
             };
+
+
 
             // Get tasks by status
 //            $pendingTasks = $getTasksByStatus('pending');
@@ -123,7 +155,9 @@ class FinancialController extends Controller
 
             $search = User::where('name', 'like', '%' . $data['search'] . '%')
                 ->orWhere('email', 'like', '%' . $data['search'] . '%')
-                ->whereIn('role',['performer','brand'])->paginate('10');
+                ->whereIn('role',['performer','brand'])
+                ->latest()
+                ->paginate('10');
 
             return $this->successResponse(['search' => $data['search'], 'user'=>$search, 'count'=>$search->count()], 'Search List', Response::HTTP_OK);
         }catch (\Exception $e){
@@ -134,15 +168,23 @@ class FinancialController extends Controller
     {
         DB::beginTransaction();
         try {
-            $tp = TaskPerformer::where('id', $taskPerformer_id)->first();
+            $tp = Task::with('creator')->where('id', $taskPerformer_id)->first();
 
             $data = $request->validate([
                 'status' => 'required|in:completed,blocked',
             ]);
 
+            $data['status'] = $data['status'] === 'completed' ? 'completed' : 'blocked';
             $data['verified_by'] = Auth::id();
 
             $tp->update($data);
+
+            $withdrawalStatus = $data['status'] === 'completed' ? '1' : '0';
+
+            $tp->creator?->update([
+                'withdrawal_status' => $withdrawalStatus
+            ]);
+
             DB::commit();
 
             return $this->successResponse($tp, 'Status updated successfully', Response::HTTP_OK);

@@ -6,5 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class TermCondition extends Model
 {
-    protected $guarded = ['id'];
+//    protected $guarded = ['id'];
+
+    protected $fillable = ['id','terms_conditions'];
 }
