@@ -144,9 +144,9 @@ class AuthController extends Controller
             return $this->errorResponse('User not found.','User not found.', Response::HTTP_NOT_FOUND);
         }
 
-        if ($userQuery->status === 'banned') {
+        if ($userQuery->status === 'Banned') {
             return $this->errorResponse(
-                null,
+                'Your account is banned. Please contact support.',
                 'Your account is banned. Please contact support.',
                 Response::HTTP_FORBIDDEN
             );

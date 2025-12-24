@@ -209,8 +209,9 @@ class AppController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
 
-            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->whereColumn('quantity','>','performed')->
-            get(['id','sm_id']);
+            $completeOrders = Task::with('social:id,name,icon_url')->where('user_id',$user->id)->whereColumn('quantity','>','performed')
+//                ->count();
+                ->get(['id','sm_id']);
 
             return $this->successResponse([
                 'ongoing' => $completeOrders,

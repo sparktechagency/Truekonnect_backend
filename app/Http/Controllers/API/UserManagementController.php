@@ -26,7 +26,7 @@ class UserManagementController extends Controller
                 'status'=> 'nullable|string',
             ]);
             $userActive = User::with('country:id,name,flag')->whereIn('role',['performer','brand'])->performerOrBrand($data['status'] ?? 'active')
-                ->withCount('referral')->search($data['search'] ?? null)
+                ->withCount('referral')->search($data['search'] ?? null)->latest()
 //                ->where('role','brand')
 //                ->orWhere('role','performer')
 //                ->where('status','active')

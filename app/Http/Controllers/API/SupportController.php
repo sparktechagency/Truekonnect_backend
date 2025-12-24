@@ -95,6 +95,14 @@ class SupportController extends Controller
 //                ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
+            $tickets->getCollection()->transform(function ($ticket) {
+                $ticket->attachments = array($ticket->attachments);
+
+
+                return $ticket;
+            });
+
+
             $message = $tickets->isEmpty() ? 'No pending tickets found.' : 'Pending tickets found.';
 
             return $this->successResponse($tickets, $message, Response::HTTP_OK);
@@ -227,6 +235,7 @@ class SupportController extends Controller
 //                ->latest()
                 ->find($id);
 
+            $tickets->attachments = array($tickets->attachments);
 //
 
             return $this->successResponse($tickets,'Ticket Reviewed',Response::HTTP_OK);

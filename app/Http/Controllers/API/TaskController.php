@@ -146,6 +146,7 @@ class TaskController extends Controller
                     'creator:id,name,avatar'
                 ])->where('status', $data['status'] ?? 'pending')->orderBy('created_at', 'desc')->where('user_id', Auth::id())
                     ->whereBetween('created_at', [$startDate, $endDate])
+
                     ->paginate(10, [
                     'id',
                     'sm_id', 'country_id', 'sms_id', 'user_id',
@@ -814,6 +815,8 @@ class TaskController extends Controller
             $data = $request->validate([
                 'per_page' => 'required|integer',
             ]);
+
+//            $taskSave = Task::whereColumn('quantity', '>', 'performed')->paginate($data['per_page']);
             $taskSave = TaskSave::with(['user:id,name,avatar','task','task.creator:id,name,avatar','task.engagement:id,engagement_name','task.social:id,icon_url'])->where('user_id',Auth::id())->paginate($data['per_page']);
 
             return $this->successResponse($taskSave, 'Task fetched successfully', Response::HTTP_OK);
@@ -1283,7 +1286,8 @@ class TaskController extends Controller
                     ->paginate($perPage);
 
                 $ticketSupport->getCollection()->transform(function ($item) use ($status) {
-                    $item->status = $status; // new attribute
+                    $item->status = $status;
+                    $item->attachments = array($item->attachments);
                     return $item;
                 });
 
@@ -1661,7 +1665,7 @@ class TaskController extends Controller
             $search = $data['search'] ?? null;
             if ($data['tags']=='task_management') {
                 if ($data['status'] == 'completed') {
-                    $completeTask = Task::with(['creator', 'engagement','reviewer'])->whereColumn('quantity', '=', 'performed')
+                    $completeTask = Task::with(['creator', 'engagement','reviewer'])->whereColumn('quantity', '=', 'performed')->latest()
                         ->when($search, function($query, $search) {
                             $query->where(function($q) use ($search) {
                                 $q->where('description', 'like', "%{$search}%")
@@ -1676,11 +1680,11 @@ class TaskController extends Controller
                                     $q3->where('engagement_name', 'like', "%{$search}%");
                                 });
                             });
-                        })->latest()->paginate(10);
+                        })->paginate(10);
                     $completeTask->status = 'completed';
                     return $this->successResponse($completeTask, 'All Orders', Response::HTTP_OK);
                 } elseif ($data['status'] == 'rejected') {
-                    $rejected = Task::with(['creator', 'engagement'])->where('status', 'rejected')
+                    $rejected = Task::with(['creator', 'engagement'])->where('status', 'rejected')->latest()
                         ->when($search, function($query, $search) {
                             $query->where(function($q) use ($search) {
                                 $q->where('description', 'like', "%{$search}%")
@@ -1695,11 +1699,11 @@ class TaskController extends Controller
                                     $q3->where('engagement_name', 'like', "%{$search}%");
                                 });
                             });
-                        })->latest()->paginate(10);
+                        })->paginate(10);
                     $rejected->status = 'rejected';
                     return $this->successResponse($rejected, 'All Orders', Response::HTTP_OK);
                 } elseif ($data['status'] == 'ongoing') {
-                    $activeTask = Task::with(['creator', 'engagement'])->whereColumn('quantity', '>', 'performed')
+                    $activeTask = Task::with(['creator', 'engagement'])->whereColumn('quantity', '>', 'performed')->latest()
                         ->when($search, function($query, $search) {
                             $query->where(function($q) use ($search) {
                                 $q->where('description', 'like', "%{$search}%")
@@ -1714,7 +1718,7 @@ class TaskController extends Controller
                                     $q3->where('engagement_name', 'like', "%{$search}%");
                                 });
                             });
-                        })->latest()->paginate(10);
+                        })->paginate(10);
                     $activeTask->status = 'ongoing';
                     return $this->successResponse($activeTask, 'All Orders', Response::HTTP_OK);
                 }
@@ -1722,7 +1726,7 @@ class TaskController extends Controller
             }
             elseif ($data['tags']=='order_management') {
                 if ($data['status'] == 'completed_order') {
-                    $completedOrder = TaskPerformer::with(['performer', 'task', 'task.engagement'])->where('status', 'completed')
+                    $completedOrder = TaskPerformer::with(['performer', 'task', 'task.engagement'])->where('status', 'completed')->latest()
                         ->when($search, function ($query, $search) {
                             $query->where(function ($q) use ($search) {
 
@@ -1742,11 +1746,11 @@ class TaskController extends Controller
                                         $e->where('engagement_name', 'like', "%{$search}%");
                                     });
                             });
-                        })->latest()->paginate(10);
+                        })->paginate(10);
                     $response = $completedOrder;
                     return $this->successResponse($completedOrder, 'All Orders', Response::HTTP_OK);
                 } elseif ($data['status'] == 'rejected_order') {
-                    $rejectedOrder = TaskPerformer::with(['performer', 'task', 'task.engagement'])->where('status', 'rejected')
+                    $rejectedOrder = TaskPerformer::with(['performer', 'task', 'task.engagement'])->where('status', 'rejected')->latest()
                         ->when($search, function ($query, $search) {
                             $query->where(function ($q) use ($search) {
 
@@ -1766,7 +1770,7 @@ class TaskController extends Controller
                                         $e->where('engagement_name', 'like', "%{$search}%");
                                     });
                             });
-                        })->latest()->paginate(10);
+                        })->paginate(10);
                     $response = $rejectedOrder;
                     return $this->successResponse($rejectedOrder, 'All Orders', Response::HTTP_OK);
                 }
