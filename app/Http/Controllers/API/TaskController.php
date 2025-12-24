@@ -139,6 +139,32 @@ class TaskController extends Controller
                 ? Carbon::parse($data['start_date'])->endOfDay()
                 : Carbon::create(2100, 12, 31, 23, 59, 59);
 
+            if ($data['status'] == 'ongoing') {
+                $tasks = Task::with([
+                    'country:id,name,flag,currency_code',
+                    'social:id,name,icon_url',
+                    'engagement:id,engagement_name',
+                    'creator:id,name,avatar'
+                ])
+                    ->whereColumn('quantity','>','performed')
+//                    ->where('status', $data['status'] ?? 'pending')
+                    ->orderBy('created_at', 'desc')
+                    ->where('user_id', Auth::id())
+//                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->paginate(10, [
+                        'id',
+                        'sm_id', 'country_id', 'sms_id', 'user_id',
+                        'quantity',
+                        'description',
+                        'link',
+                        'performed',
+                        'per_perform',
+                        'token_distributed',
+                        'total_price',
+                        'status',
+                        'created_at'
+                    ]);
+            }else {
                 $tasks = Task::with([
                     'country:id,name,flag,currency_code',
                     'social:id,name,icon_url',
@@ -146,21 +172,20 @@ class TaskController extends Controller
                     'creator:id,name,avatar'
                 ])->where('status', $data['status'] ?? 'pending')->orderBy('created_at', 'desc')->where('user_id', Auth::id())
                     ->whereBetween('created_at', [$startDate, $endDate])
-
                     ->paginate(10, [
-                    'id',
-                    'sm_id', 'country_id', 'sms_id', 'user_id',
-                    'quantity',
-                    'description',
-                    'link',
-                    'performed',
-                    'per_perform',
-                    'token_distributed',
-                    'total_price',
-                    'status',
-                    'created_at'
-                ]);
-
+                        'id',
+                        'sm_id', 'country_id', 'sms_id', 'user_id',
+                        'quantity',
+                        'description',
+                        'link',
+                        'performed',
+                        'per_perform',
+                        'token_distributed',
+                        'total_price',
+                        'status',
+                        'created_at'
+                    ]);
+            }
 
 
             return $this->successResponse($tasks, 'All tasks fetched successfully', Response::HTTP_OK);
@@ -182,7 +207,9 @@ class TaskController extends Controller
     {
         try {
             $taskPerformer = Task::with(['country','creator','reviewer','performers','engagement','users'])->where('user_id',Auth::id())
-                ->where('status','completed')->latest()->paginate(10);
+                ->where('status','completed')
+//                ->count();
+                ->latest()->paginate(10);
 
             $totalUser = $taskPerformer->count();
             $totalToken = $taskPerformer->sum('token_distributed');

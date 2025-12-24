@@ -167,10 +167,10 @@ class AppController extends Controller
                     $q->where('user_id', $user->id);
                 })->get();
 
-            $totaltaskPerformerGotPaid = TaskPerformer::with(['performer:id,name,email,avatar','task:id,sm_id','task.social:id,name'])
-                ->where('status', 'completed')->whereHas('task', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
-                })->count();
+            $totaltaskPerformerGotPaid = Task::with(['country','creator','reviewer','performers','engagement','users'])->where('user_id',Auth::id())
+                ->where('status','completed')
+                ->count();
+//                ->latest()->paginate(10);
 
             $totalTokenDistribution = Task::where('user_id',$user->id)->whereColumn('quantity','=','performed')->sum('token_distributed');
             return $this->successResponse([
