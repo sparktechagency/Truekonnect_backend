@@ -119,6 +119,75 @@ class UserLeaderboard extends Controller
 
             if ($user->role == 'performer') {
 
+//                $leaderboard = TaskPerformer::query()
+//                    ->join('users', 'users.id', '=', 'task_performers.user_id')
+//                    ->select(
+//                        'users.id as user_id',
+//                        'users.name',
+//                        'users.avatar',
+//                        DB::raw('COUNT(task_performers.id) as completed_tasks')
+//                    )
+//                    ->where('task_performers.status', 'completed')
+//                    ->groupBy('users.id', 'users.name', 'users.avatar')
+//                    ->orderByDesc('completed_tasks')
+//                    ->paginate(10);
+//
+//
+//
+//
+//
+//
+//
+//                $rank = ($leaderboard->currentPage() - 1) * $leaderboard->perPage();
+//                $previousTasks = null;
+//                $currentUser = null;
+//
+//                foreach ($leaderboard as $item) {
+//                    if ($previousTasks === null || $item->completed_tasks < $previousTasks) {
+//                        $rank++;
+//                    }
+//
+//                    $item->rank = $rank;
+//                    $previousTasks = $item->completed_tasks;
+//
+//                    if ($item->user_id == $userId) {
+//                        $item->name = 'You';
+//                        $currentUser = $item;
+//                    }
+//                }
+//
+//                /*
+//                |--------------------------------------------------------------------------
+//                | If current user NOT in this page → fetch separately
+//                |--------------------------------------------------------------------------
+//                */
+//
+//
+//
+//                if (!$currentUser) {
+//
+//                    // completed tasks of current user
+//                    $myCompletedTasks = TaskPerformer::where('user_id', $userId)
+////                        ->join('users','users.id','=','task_performers.user_id')
+////                        ->select('users.*')
+//                        ->where('task_performers.status', 'completed')
+//                        ->count();
+//
+//                    // global rank
+//                    $myRank = TaskPerformer::select('user_id', DB::raw('COUNT(*) as total'))
+//                            ->where('status', 'completed')
+//                            ->groupBy('user_id')
+//                            ->having('total', '>', $myCompletedTasks)
+//                            ->count() + 1;
+//
+//                    $currentUser = (object)[
+//                        'user_id' => $userId,
+//                        'completed_tasks' => $myCompletedTasks,
+//                        'rank' => $myRank,
+//                        'name' => 'You',
+//                    ];
+//                }
+
                 $leaderboard = TaskPerformer::query()
                     ->join('users', 'users.id', '=', 'task_performers.user_id')
                     ->select(
@@ -132,12 +201,68 @@ class UserLeaderboard extends Controller
                     ->orderByDesc('completed_tasks')
                     ->paginate(10);
 
+                /*
+                |--------------------------------------------------------------------------
+                | 2. Pagination helpers
+                |--------------------------------------------------------------------------
+                */
 
-                $rank = ($leaderboard->currentPage() - 1) * $leaderboard->perPage();
-                $previousTasks = null;
-                $currentUser = null;
+                $currentPage = $leaderboard->currentPage();
+                $offset      = ($currentPage - 1) * 10;
+
+                /*
+                |--------------------------------------------------------------------------
+                | 3. Get LAST completed_tasks from previous page
+                |--------------------------------------------------------------------------
+                */
+
+                $lastTasksFromPrevPage = null;
+
+                if ($offset > 0) {
+                    $lastTasksFromPrevPage = DB::table(DB::raw("
+            (
+                SELECT COUNT(*) as total
+                FROM task_performers
+                WHERE status = 'completed'
+                GROUP BY user_id
+                ORDER BY total DESC
+                LIMIT {$offset}, 1
+            ) as t
+        "))->value('total');
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | 4. Count DISTINCT completed_tasks BEFORE this page
+                |--------------------------------------------------------------------------
+                */
+
+                $distinctRanksBefore = DB::table(DB::raw("
+        (
+            SELECT COUNT(*) as total
+            FROM task_performers
+            WHERE status = 'completed'
+            GROUP BY user_id
+            ORDER BY total DESC
+            LIMIT {$offset}
+        ) as t
+    "))
+                    ->select(DB::raw('COUNT(DISTINCT total) as cnt'))
+                    ->value('cnt') ?? 0;
+
+                /*
+                |--------------------------------------------------------------------------
+                | 5. Assign DENSE RANK (correct across pages)
+                |--------------------------------------------------------------------------
+                */
+
+                $rank          = $distinctRanksBefore;
+                $previousTasks = $lastTasksFromPrevPage;
+                $currentUser   = null;
 
                 foreach ($leaderboard as $item) {
+
+                    // increase rank ONLY when completed_tasks decreases
                     if ($previousTasks === null || $item->completed_tasks < $previousTasks) {
                         $rank++;
                     }
@@ -153,36 +278,43 @@ class UserLeaderboard extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | If current user NOT in this page → fetch separately
+                | 6. If logged-in user is NOT on this page
                 |--------------------------------------------------------------------------
                 */
+
                 if (!$currentUser) {
 
-                    // completed tasks of current user
                     $myCompletedTasks = TaskPerformer::where('user_id', $userId)
-//                        ->join('users','users.id','=','task_performers.user_id')
-//                        ->select('users.*')
-                        ->where('task_performers.status', 'completed')
+                        ->where('status', 'completed')
                         ->count();
 
-                    // global rank
-                    $myRank = TaskPerformer::select('user_id', DB::raw('COUNT(*) as total'))
-                            ->where('status', 'completed')
-                            ->groupBy('user_id')
-                            ->having('total', '>', $myCompletedTasks)
-                            ->count() + 1;
+                    // DENSE RANK calculation
+                    $myRank = DB::table(DB::raw("
+            (
+                SELECT COUNT(*) as total
+                FROM task_performers
+                WHERE status = 'completed'
+                GROUP BY user_id
+            ) as t
+        "))
+                            ->where('total', '>', $myCompletedTasks)
+                            ->distinct()
+                            ->count('total') + 1;
 
-                    $currentUser = (object)[
+                    $currentUser = (object) [
                         'user_id' => $userId,
+                        'name' => 'You',
+                        'avatar' => auth()->user()->avatar ?? null,
                         'completed_tasks' => $myCompletedTasks,
                         'rank' => $myRank,
-                        'name' => 'You',
                     ];
                 }
+
             }
             else {
 
                 /* ---------- ADMIN / OTHER ROLE ---------- */
+
 
                 $leaderboard = Task::query()
                     ->join('users', 'users.id', '=', 'tasks.user_id')
@@ -197,18 +329,19 @@ class UserLeaderboard extends Controller
                     ->orderByDesc('completed_tasks')
                     ->paginate(10);
 
-
-                $rank = ($leaderboard->currentPage() - 1) * $leaderboard->perPage();
-                $previousTasks = null;
                 $currentUser = null;
+                $rank = 0;
+                $lastTaskCount = null;
+                $indexOffset = ($leaderboard->currentPage() - 1) * $leaderboard->perPage();
 
-                foreach ($leaderboard as $item) {
-                    if ($previousTasks === null || $item->completed_tasks < $previousTasks) {
-                        $rank++;
+                foreach ($leaderboard as $index => $item) {
+
+                    if ($lastTaskCount !== $item->completed_tasks) {
+                        $rank = $indexOffset + $index + 1;
+                        $lastTaskCount = $item->completed_tasks;
                     }
 
                     $item->rank = $rank;
-                    $previousTasks = $item->completed_tasks;
 
                     if ($item->user_id == $userId) {
                         $item->name = 'You';
@@ -216,24 +349,74 @@ class UserLeaderboard extends Controller
                     }
                 }
 
+
+//                $rank = ($leaderboard->currentPage() - 1) * $leaderboard->perPage();
+//                $previousTasks = null;
+//                $currentUser = null;
+//
+//                foreach ($leaderboard as $item) {
+//                    if ($previousTasks === null || $item->completed_tasks < $previousTasks) {
+//                        $rank++;
+//                    }
+//
+//                    $item->rank = $rank;
+//                    $previousTasks = $item->completed_tasks;
+//
+//                    if ($item->user_id == $userId) {
+//                        $item->name = 'You';
+//                        $currentUser = $item;
+//                    }
+//                }
+
                 if (!$currentUser) {
                     $myCompletedTasks = Task::where('user_id', $userId)
                         ->where('status', 'completed')
                         ->count();
 
-                    $myRank = Task::select('user_id', DB::raw('COUNT(*) as total'))
-                            ->where('status', 'completed')
-                            ->groupBy('user_id')
-                            ->having('total', '>', $myCompletedTasks)
-                            ->count() + 1;
+                    $myRank = DB::table(DB::raw("
+                                    (
+                                        SELECT user_id, COUNT(*) AS total
+                                        FROM tasks
+                                        WHERE status = 'completed'
+                                        GROUP BY user_id
+                                    ) t
+                                "))
+                            ->where('total', '>', $myCompletedTasks)
+                            ->distinct()
+                            ->count('total') + 1;
 
-                    $currentUser = (object)[
+
+                    if ($myCompletedTasks === 0) {
+                        $myRank++;
+                    }
+                    $currentUser = (object) [
                         'user_id' => $userId,
                         'completed_tasks' => $myCompletedTasks,
                         'rank' => $myRank,
                         'name' => 'You',
+                        'avatar' => null,
                     ];
                 }
+
+
+//                if (!$currentUser) {
+//                    $myCompletedTasks = Task::where('user_id', $userId)
+//                        ->where('status', 'completed')
+//                        ->count();
+//
+//                    $myRank = Task::select('user_id', DB::raw('COUNT(*) as total'))
+//                            ->where('status', 'completed')
+//                            ->groupBy('user_id')
+//                            ->having('total', '>', $myCompletedTasks)
+//                            ->count() + 1;
+//
+//                    $currentUser = (object)[
+//                        'user_id' => $userId,
+//                        'completed_tasks' => $myCompletedTasks,
+//                        'rank' => $myRank,
+//                        'name' => 'You',
+//                    ];
+//                }
             }
 
             return $this->successResponse([

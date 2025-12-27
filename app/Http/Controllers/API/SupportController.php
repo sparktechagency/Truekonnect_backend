@@ -150,7 +150,15 @@ class SupportController extends Controller
                 $ticket->save();
 
                 $email=$customer->email;
-                Mail::to($email)->send(new SupportTicketMail($customer, $reply,$ticket));
+
+                Mail::raw(
+                    "Hello {$customer->name},\n\nYou have a new reply for your ticket #{$ticket->id}:\n\n{$reply}\n\nThank you,\nSupport Team",
+                    function ($message) use ($email, $ticket) {
+                        $message->to($email)
+                            ->subject('Support Ticket Reply: #' . $ticket->id);
+                    }
+                );
+//                Mail::to($email)->send(new SupportTicketMail($customer, $reply,$ticket));
 
                 $title = 'Your Support Ticket Has Been Answered';
                 $body  = "Hello {$customer->name}, your support ticket '{$ticket->subject}' has been answered. Reply: {$reply}";
@@ -281,7 +289,14 @@ class SupportController extends Controller
                 $ticket->save();
 
                 $email=$customer->email;
-                Mail::to($email)->send(new SupportTicketMail($customer, $reply,$ticket));
+                Mail::raw(
+                    "Hello {$customer->name},\n\nYou have a new reply for your ticket #{$ticket->id}:\n\n{$reply}\n\nThank you,\nSupport Team",
+                    function ($message) use ($email, $ticket) {
+                        $message->to($email)
+                            ->subject('Support Ticket Reply: #' . $ticket->id);
+                    }
+                );
+//                Mail::to($email)->send(new SupportTicketMail($customer, $reply,$ticket));
 
                 $title = 'Ticket Answered';
                 $body = 'Your support ticket has been answered. Reply: '. $reply;

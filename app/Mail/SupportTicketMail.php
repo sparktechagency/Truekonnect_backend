@@ -21,9 +21,9 @@ class SupportTicketMail extends Mailable
     public $ticket;
     public function __construct($customer,$reply,$ticket)
     {
-        $this->user = $customer;
+        $this->customer = $customer;
         $this->reply = $reply;
-        $this->ticketinfo = $ticket;
+        $this->ticket = $ticket;
     }
 
     /**

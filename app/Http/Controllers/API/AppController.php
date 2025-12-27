@@ -287,6 +287,7 @@ class AppController extends Controller
     {
         try {
             $user=JWTAuth::user();
+//            $socialMedia = SocialMedia::all();
             $socialMedia=SocialAccount::with('social:id,name,icon_url')
                         ->where('user_id',$user->id)->latest()
 //                        ->select('id','user_id','sm_id','profile_name','verification_by','verified_at','rejection_reason')
@@ -295,6 +296,9 @@ class AppController extends Controller
                 return $this->errorResponse('Social media not found.',null, Response::HTTP_NOT_FOUND);
             }
 
+//            $response = [
+//                'social'=>$socialMedia,
+//            ];
             return $this->successResponse($socialMedia,'Social media list successfully.', Response::HTTP_OK);
 
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {

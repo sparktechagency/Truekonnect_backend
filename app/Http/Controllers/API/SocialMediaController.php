@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\SocialAccount;
 use App\Models\SocialMedia;
+use App\Models\User;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -37,6 +39,15 @@ class SocialMediaController extends Controller
                 'name' => $request->name,
                 'icon_url' => $iconPath,
             ]);
+
+            $user = User::whereIn('role',['performer','brand'])->get();
+
+            foreach ($user as $u) {
+                SocialAccount::create([
+                    'user_id' => $u->id,
+                    'sm_id' => $platform->id,
+                ]);
+            }
 
             return $this->successResponse($platform, 'Social media added!',Response::HTTP_OK);
 

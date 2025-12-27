@@ -73,7 +73,8 @@ class TaskController extends Controller
                 ], 422);
             }
 
-            $sms=SocialMediaService::findOrFail($request->sms_id)->first();
+            $sms=SocialMediaService::find($request->sms_id);
+//            dd($sms);
 
             if ($sms->min_quantity > $request->quantity) {
                 return $this->errorResponse('Please select a quantity of at least '.$sms->min_quantity.' to continue.',null,Response::HTTP_BAD_REQUEST);

@@ -87,13 +87,13 @@ class AuthController extends Controller
                 'avatar' => 'avatars/default_avatar.png',
             ]);
 
-            $socialMedia = SocialMedia::get();
-            foreach ($socialMedia as $item) {
-                SocialAccount::create([
-                    'user_id' => $user->id,
-                    'sm_id' => $item->id,
-                ]);
-            }
+//            $socialMedia = SocialMedia::get();
+//            foreach ($socialMedia as $item) {
+//                SocialAccount::create([
+//                    'user_id' => $user->id,
+//                    'sm_id' => $item->id,
+//                ]);
+//            }
             if ($request->filled('referral_code')) {
                 $refUser = User::where('referral_code', $request->referral_code)->first();
                 if ($refUser) {
