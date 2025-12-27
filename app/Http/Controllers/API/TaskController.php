@@ -845,7 +845,10 @@ class TaskController extends Controller
             ]);
 
 //            $taskSave = Task::whereColumn('quantity', '>', 'performed')->paginate($data['per_page']);
-            $taskSave = TaskSave::with(['user:id,name,avatar','task','task.creator:id,name,avatar','task.engagement:id,engagement_name','task.social:id,icon_url'])->where('user_id',Auth::id())->paginate($data['per_page']);
+            $taskSave = TaskSave::with(['user:id,name,avatar','task','task.creator:id,name,avatar','task.engagement:id,engagement_name','task.social:id,icon_url'])
+                ->where('user_id',Auth::id())
+                ->latest()
+                ->paginate($data['per_page']);
 
             return $this->successResponse($taskSave, 'Task fetched successfully', Response::HTTP_OK);
         }catch (\Exception $e) {
