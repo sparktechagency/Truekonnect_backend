@@ -717,27 +717,28 @@ class TaskController extends Controller
                 ->where('status', 'verifyed')
                 ->whereColumn('quantity', '!=', 'performed')
                 ->where('country_id', $user->country_id)
-                ->whereDoesntHave('taskperformers', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
-                })
+//                ->whereDoesntHave('taskperformers', function ($q) use ($user) {
+//                    $q->where('user_id', $user->id);
+//                })
                 ->orderBy('created_at', 'desc');
 //            dd($tasksQuery->get());
 
-            if ($search) {
-                $tasksQuery->whereHas('social', function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%');
-                });
-            }
-//            if (!empty($search)) {
-//                $tasksQuery->where(function ($q) use ($search, $searchValue) {
-//                    if (!empty($search)) {
-//                        $q->whereHas('social', function ($sq) use ($search) {
-//                            $sq->where('name', 'like', '%' . $search . '%');
-//                        });
-//                    }
+//            if ($search) {
+//                $tasksQuery->whereHas('social', function($q) use ($search) {
+//                    $q->where('name', 'like', '%' . $search . '%');
 //                });
-//
 //            }
+
+            if (!empty($search)) {
+                $tasksQuery->where(function ($q) use ($search, $searchValue) {
+                    if (!empty($search)) {
+                        $q->whereHas('social', function ($sq) use ($search) {
+                            $sq->where('name', 'like', '%' . $search . '%');
+                        });
+                    }
+                });
+
+            }
 
                 if (empty($searchValue)) {
 
