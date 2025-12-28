@@ -34,7 +34,7 @@ class NotificationCenter extends Controller
                         ? optional(User::find($n->data['sender_id']))->name
                         : null,
                     'read' => $n->read_at ? true : false,
-                    'created_at' => $n->created_at->format('M d, Y h:i:s A'),
+                    'created_at' => $n->created_at,
                 ];
             });
 
