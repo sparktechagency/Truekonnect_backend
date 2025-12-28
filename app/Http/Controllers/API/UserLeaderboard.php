@@ -191,19 +191,34 @@ class UserLeaderboard extends Controller
 
                 $userId = auth()->id();
 
-                $baseQuery = DB::table('users')
-                    ->leftJoin('task_performers', function ($join) {
-                        $join->on('task_performers.user_id', '=', 'users.id')
-                            ->where('task_performers.status','=', 'completed');
-                    })
-                    ->groupBy('users.id', 'users.name', 'users.avatar')
-                    ->select(
-                        'users.id as user_id',
-                        'users.name',
-                        'users.avatar',
-                        DB::raw('COUNT(task_performers.id) as completed_tasks'),
-                        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(task_performers.id) DESC) as rank')
-                    );
+                // $baseQuery = DB::table('users')
+                //     ->leftJoin('task_performers', function ($join) {
+                //         $join->on('task_performers.user_id', '=', 'users.id')
+                //             ->where('task_performers.status','=', 'completed');
+                //     })
+                //     ->groupBy('users.id', 'users.name', 'users.avatar')
+                //     ->select(
+                //         'users.id as user_id',
+                //         'users.name',
+                //         'users.avatar',
+                //         DB::raw('COUNT(task_performers.id) as completed_tasks'),
+                //         DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(task_performers.id) DESC) as rank')
+                //     );
+$baseQuery = DB::table('users')
+    ->leftJoin('task_performers', function ($join) {
+        $join->on('task_performers.user_id', '=', 'users.id')
+            ->where('task_performers.status', 'completed');
+    })
+    ->groupBy('users.id', 'users.name', 'users.avatar')
+    ->select(
+        'users.id as user_id',
+        'users.name',
+        'users.avatar',
+        DB::raw('COUNT(task_performers.id) as completed_tasks'),
+        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(task_performers.id) DESC) as `rank`')
+    );
+
+
 
                 $currentUser = (clone $baseQuery)
                     ->where('users.id', $userId)
@@ -211,16 +226,32 @@ class UserLeaderboard extends Controller
                 if ($currentUser) {
                     $currentUser->name = 'You';
                 }
+
+
+                // $leaderboard = (clone $baseQuery)
+                //     ->orderBy('rank')
+                //     ->paginate(10);
+                // $leaderboard->getCollection()->transform(function ($user) use ($userId) {
+                //     if ($user->user_id == $userId) {
+                //         $user->name = 'You';
+                //     }
+                //     $user->avatar = $user->avatar ?? 'avatars/default_avatar.png';
+                //     return $user;
+                // });
+
                 $leaderboard = (clone $baseQuery)
-                    ->orderBy('rank')
-                    ->paginate(10);
-                $leaderboard->getCollection()->transform(function ($user) use ($userId) {
-                    if ($user->user_id == $userId) {
-                        $user->name = 'You';
-                    }
-                    $user->avatar = $user->avatar ?? 'avatars/default_avatar.png';
-                    return $user;
-                });
+    ->orderBy('rank')
+    ->paginate(10);
+
+$leaderboard->getCollection()->transform(function ($user) use ($userId) {
+    if ($user->user_id == $userId) {
+        $user->name = 'You';
+    }
+    $user->avatar = $user->avatar ?? 'avatars/default_avatar.png';
+    return $user;
+});
+
+                // dd($leaderboard);
 //                $leaderboard = TaskPerformer::query()
 //                    ->join('users', 'users.id', '=', 'task_performers.user_id')
 //                    ->select(
@@ -351,18 +382,18 @@ class UserLeaderboard extends Controller
                 $userId = auth()->id();
 
                 $baseQuery = DB::table('users')
-                    ->leftJoin('tasks', function ($join) {
-                        $join->on('tasks.user_id', '=', 'users.id')
-                            ->where('tasks.status','=', 'completed');
-                    })
-                    ->groupBy('users.id', 'users.name', 'users.avatar')
-                    ->select(
-                        'users.id as user_id',
-                        'users.name',
-                        'users.avatar',
-                        DB::raw('COUNT(tasks.id) as completed_tasks'),
-                        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(tasks.id) DESC) as rank')
-                    );
+    ->leftJoin('tasks', function ($join) {
+        $join->on('tasks.user_id', '=', 'users.id')
+            ->where('tasks.status', 'completed');
+    })
+    ->groupBy('users.id', 'users.name', 'users.avatar')
+    ->select(
+        'users.id as user_id',
+        'users.name',
+        'users.avatar',
+        DB::raw('COUNT(tasks.id) as completed_tasks'),
+        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(tasks.id) DESC) as `rank`')
+    );
                 $currentUser = (clone $baseQuery)
                     ->where('users.id', $userId)
                     ->first();
@@ -370,15 +401,16 @@ class UserLeaderboard extends Controller
                     $currentUser->name = 'You';
                 }
                 $leaderboard = (clone $baseQuery)
-                    ->orderBy('rank')
-                    ->paginate(10);
-                $leaderboard->getCollection()->transform(function ($user) use ($userId) {
-                    if ($user->user_id == $userId) {
-                        $user->name = 'You';
-                    }
-                    $user->avatar = $user->avatar ?? 'avatars/default_avatar.png';
-                    return $user;
-                });
+    ->orderBy('rank')
+    ->paginate(10);
+
+$leaderboard->getCollection()->transform(function ($user) use ($userId) {
+    if ($user->user_id == $userId) {
+        $user->name = 'You';
+    }
+    $user->avatar = $user->avatar ?? 'avatars/default_avatar.png';
+    return $user;
+});
 //                $leaderboard->setCollection(
 //                    collect([$currentUser])->merge($leaderboard->getCollection())
 //                );
