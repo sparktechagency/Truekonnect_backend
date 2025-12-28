@@ -62,7 +62,7 @@ class EmailNotificationController extends Controller
 
             foreach ($users as $userss) {
                 $userss->notify(new UserNotification(
-                    'New Notification',
+                    $data['message'],
                     $data['message'],
                 ));
             }
