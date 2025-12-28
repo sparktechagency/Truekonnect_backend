@@ -194,7 +194,7 @@ class UserLeaderboard extends Controller
                 $baseQuery = DB::table('users')
                     ->leftJoin('task_performers', function ($join) {
                         $join->on('task_performers.user_id', '=', 'users.id')
-                            ->where('task_performers.status', 'completed');
+                            ->where('task_performers.status','=', 'completed');
                     })
                     ->groupBy('users.id', 'users.name', 'users.avatar')
                     ->select(
@@ -353,7 +353,7 @@ class UserLeaderboard extends Controller
                 $baseQuery = DB::table('users')
                     ->leftJoin('tasks', function ($join) {
                         $join->on('tasks.user_id', '=', 'users.id')
-                            ->where('tasks.status', 'completed');
+                            ->where('tasks.status','=', 'completed');
                     })
                     ->groupBy('users.id', 'users.name', 'users.avatar')
                     ->select(
