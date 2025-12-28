@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\Payment;
 use App\Models\SocialAccount;
 use App\Models\SocialMedia;
 use App\Models\SupportTicket;
@@ -11,6 +12,7 @@ use App\Models\Countrie;
 use App\Models\TaskFile;
 use App\Models\TaskSave;
 use App\Notifications\UserNotification;
+use App\Services\KorbaXchangeService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
@@ -53,7 +55,7 @@ class TaskController extends Controller
             return $this->errorResponse('Something went wrong',$exception->getMessage(),500);
         }
     }
-    public function createTask(Request $request){
+    public function createTask(Request $request, KorbaXchangeService $korba){
         DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
@@ -107,14 +109,62 @@ class TaskController extends Controller
                 'total_price'       => $totalprice,
             ]);
 
-            $title = 'New Task Created!';
-            $body = 'Task: '. $task->description . '. Quantity: ' .$task->quantity. '. Reward per perform: ' .$task->per_perform;
 
-            foreach ($allUser as $users) {
-                $users->notify(new UserNotification($title, $body));
-            }
-            DB::commit();
-            return $this->successResponse($task, 'Task created successfully', Response::HTTP_CREATED);
+            $transactionId = Payment::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count() + 1;
+            $transactionId = 'PAY-' . now()->format('myHis') . str_pad($transactionId, 4, '0', STR_PAD_LEFT);
+
+
+                $payload = [
+//                'customer_number' => $user->phone,
+                    'customer_number' => '0555804252',
+                    'amount'          => $task->unite_price,
+                    'transaction_id'  => $transactionId,
+                    'client_id'       => 1358,
+                    'network_code'    => 'MTN',
+                    'callback_url' => route('korba.callback'),
+//                    'description' => $extraInfo['social_name']
+//                        . ' - Qty: ' . $extraInfo['quantity']
+//                        . ' Price: ' . $extraInfo['unit_price'],
+                    'payer_name' => $user->name,
+//                    'extra_info' => $extraInfo['social_name'],
+                    'redirect_url' => route('korba.callback'),
+                ];
+//            dd($payload);
+                $response = $korba->collect($payload);
+
+
+                Payment::create([
+                    'user_id'         => Auth::id(),
+                    'task_id'         => $task->id,
+                    'transaction_id'  => $transactionId,
+                    'amount'          => $task->unite_price,
+                    'status'          => 'pending',
+                    'network_code'    => $request->network_code,
+                    'customer_number' => $request->customer_number,
+                ]);
+
+
+                $title = 'Payment Initiated.';
+                $body = 'We sent a prompt to your phone number ' .$request->customer_number. '. Please accept it. Your transaction id: ' . $transactionId;
+
+                $user->notify(new UserNotification($title, $body));
+
+                DB::commit();
+//                return $this->successResponse([
+//                    'response'=> $response,
+//                    'trnxId'=> $transactionId
+//                ],'Payment Initiated Successfully by Brand.',Response::HTTP_OK);
+
+
+
+//            $title = 'New Task Created!';
+//            $body = 'Task: '. $task->description . '. Quantity: ' .$task->quantity. '. Reward per perform: ' .$task->per_perform;
+
+//            foreach ($allUser as $users) {
+//                $users->notify(new UserNotification($title, $body));
+//            }
+//            DB::commit();
+            return $this->successResponse([$task,'response'=> $response], 'Task created successfully', Response::HTTP_CREATED);
 
         } catch (QueryException $e) {
             DB::rollback();
