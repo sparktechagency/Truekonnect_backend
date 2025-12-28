@@ -114,9 +114,9 @@ class PaymentController extends Controller
             return $this->errorResponse("You don't have permission to withdraw.",null,Response::HTTP_FORBIDDEN);
         }
 
-        if (!Task::where('user_id', $user->id)->exists()) {
-            return $this->errorResponse("Purchase at least one task by ".env('APP_NAME')." app & add that account at my profile section in link social account",null,Response::HTTP_FORBIDDEN);
-        }
+//        if (!Task::where('user_id', $user->id)->exists()) {
+//            return $this->errorResponse("Purchase at least one task by ".env('APP_NAME')." app & add that account at my profile section in link social account",null,Response::HTTP_FORBIDDEN);
+//        }
 
         $transactionId = Withdrawal::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count() + 1;
         $transactionId = 'WD-' . now()->format('myHis') . str_pad($transactionId, 4, '0', STR_PAD_LEFT);
