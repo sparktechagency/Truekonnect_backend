@@ -96,6 +96,7 @@ class WithdrawalController extends Controller
             $info->earn_token -= $request->token;
             $info->convert_token += $request->token;
             $info->balance += $request->token * $info->country->token_rate;
+//            dd($info->earn_token,$info->convert_token,$info->balance,$info->country->token_rate);
             $info->save();
 
             $title = 'Token has been converted!';

@@ -243,7 +243,9 @@ class SupportController extends Controller
 //                ->latest()
                 ->find($id);
 
-            $tickets->attachments = array($tickets->attachments);
+            if ($tickets->attachments) {
+                $tickets->attachments = array($tickets->attachments);
+            }
 //
 
             return $this->successResponse($tickets,'Ticket Reviewed',Response::HTTP_OK);

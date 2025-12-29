@@ -60,6 +60,8 @@ class TaskController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'sm_id'       => 'required|integer|exists:social_media,id',
+//                'customer_number' => 'required|string',
+//                'network_code' => 'required|string',
 //                'country_id'  => 'required|integer|exists:countries,id',
                 'sms_id'      => 'required|integer|exists:social_media_services,id',
                 'quantity'    => 'required|integer',
@@ -77,19 +79,27 @@ class TaskController extends Controller
 
             $sms=SocialMediaService::find($request->sms_id);
 //            dd($sms);
-
+            $socialAccount = SocialAccount::where('sm_id',$request->sm_id)
+                ->where('user_id',Auth::id())
+//                ->where('status','verified')
+                ->first();
+//            dd($socialAccount->status);
+            if ($socialAccount->status == 'unverified') {
+                return $this->errorResponse('Your social account is not verified yet',null,Response::HTTP_BAD_REQUEST);
+            }
             if ($sms->min_quantity > $request->quantity) {
                 return $this->errorResponse('Please select a quantity of at least '.$sms->min_quantity.' to continue.',null,Response::HTTP_BAD_REQUEST);
             }
             $country=Countrie::findOrFail(Auth::user()->country_id)->first();
 
-//            dd($country->token_rate);
-//            dd($sms);
+
             $totalprice=$sms->unit_price*$request->quantity;
             $performerAmount=$totalprice/2;
-            $perperfrom=($performerAmount/ $request->quantity) / $country->token_rate;
-            $totaltoken=$performerAmount/$country->token_rate;
+//            $perperfrom=($performerAmount/ $request->quantity) / $country->token_rate;
+            $perperfrom=$performerAmount / $country->token_rate;
+            $totaltoken=$performerAmount*$country->token_rate;
 
+            $social = SocialMedia::find($request->sm_id);
 //            dd($totaltoken,$perperfrom,$totalprice,$performerAmount);
             $user=JWTAuth::user();
 
@@ -109,62 +119,8 @@ class TaskController extends Controller
                 'total_price'       => $totalprice,
             ]);
 
-
-            $transactionId = Payment::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count() + 1;
-            $transactionId = 'PAY-' . now()->format('myHis') . str_pad($transactionId, 4, '0', STR_PAD_LEFT);
-
-
-                $payload = [
-//                'customer_number' => $user->phone,
-                    'customer_number' => '0555804252',
-                    'amount'          => $task->unite_price,
-                    'transaction_id'  => $transactionId,
-                    'client_id'       => 1358,
-                    'network_code'    => 'MTN',
-                    'callback_url' => route('korba.callback'),
-//                    'description' => $extraInfo['social_name']
-//                        . ' - Qty: ' . $extraInfo['quantity']
-//                        . ' Price: ' . $extraInfo['unit_price'],
-                    'payer_name' => $user->name,
-//                    'extra_info' => $extraInfo['social_name'],
-                    'redirect_url' => route('korba.callback'),
-                ];
-//            dd($payload);
-                $response = $korba->collect($payload);
-
-
-                Payment::create([
-                    'user_id'         => Auth::id(),
-                    'task_id'         => $task->id,
-                    'transaction_id'  => $transactionId,
-                    'amount'          => $task->unite_price,
-                    'status'          => 'pending',
-                    'network_code'    => $request->network_code,
-                    'customer_number' => $request->customer_number,
-                ]);
-
-
-                $title = 'Payment Initiated.';
-                $body = 'We sent a prompt to your phone number ' .$request->customer_number. '. Please accept it. Your transaction id: ' . $transactionId;
-
-                $user->notify(new UserNotification($title, $body));
-
-                DB::commit();
-//                return $this->successResponse([
-//                    'response'=> $response,
-//                    'trnxId'=> $transactionId
-//                ],'Payment Initiated Successfully by Brand.',Response::HTTP_OK);
-
-
-
-//            $title = 'New Task Created!';
-//            $body = 'Task: '. $task->description . '. Quantity: ' .$task->quantity. '. Reward per perform: ' .$task->per_perform;
-
-//            foreach ($allUser as $users) {
-//                $users->notify(new UserNotification($title, $body));
-//            }
-//            DB::commit();
-            return $this->successResponse([$task,'response'=> $response], 'Task created successfully', Response::HTTP_CREATED);
+            DB::commit();
+            return $this->successResponse(['task'=>$task,'engagement'=>$sms,'social'=>$social], 'Task created successfully', Response::HTTP_CREATED);
 
         } catch (QueryException $e) {
             DB::rollback();
@@ -765,11 +721,11 @@ class TaskController extends Controller
                 'creator:id,name,avatar'
             ])
                 ->where('status', 'verifyed')
-                ->whereColumn('quantity', '!=', 'performed')
+                ->whereColumn('quantity', '>', 'performed')
                 ->where('country_id', $user->country_id)
-//                ->whereDoesntHave('taskperformers', function ($q) use ($user) {
-//                    $q->where('user_id', $user->id);
-//                })
+                ->whereDoesntHave('taskperformers', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
                 ->orderBy('created_at', 'desc');
 //            dd($tasksQuery->get());
 
@@ -969,6 +925,12 @@ class TaskController extends Controller
 
             $user = JWTAuth::parseToken()->authenticate();
             $task = Task::findOrFail($request->task_id);
+
+            $socialAccount = SocialAccount::where('user_id', $user->id)->where('sm_id',$task->sm_id)->first();
+
+            if ($socialAccount->status == 'unverified') {
+                return $this->errorResponse(null,'Your social account is not verified yet. You can not perform this task', Response::HTTP_UNAUTHORIZED);
+            }
 
             $taskPerformer = TaskPerformer::where('user_id', $user->id)->where('task_id',$task->id)->exists();
 
@@ -1700,7 +1662,7 @@ class TaskController extends Controller
             }
             elseif ($task->status === 'rejected') {
                 $task->status = 'rejected';
-            }else{
+            }elseif($task->status === 'verifyed'){
                 $task->status = 'ongoing';
                 $task->progress = ($task->performed / $task->quantity) * 100;
             }
@@ -1745,8 +1707,10 @@ class TaskController extends Controller
                 'tags'=>'required'
             ]);
             $search = $data['search'] ?? null;
+            $status = $data['status'] ?? 'pending';
+//            dd($request->all());
             if ($data['tags']=='task_management') {
-                if ($data['status'] == 'completed') {
+                if ($status == 'completed') {
                     $completeTask = Task::with(['creator', 'engagement','reviewer'])->whereColumn('quantity', '=', 'performed')->latest()
                         ->when($search, function($query, $search) {
                             $query->where(function($q) use ($search) {
@@ -1765,7 +1729,7 @@ class TaskController extends Controller
                         })->paginate(10);
                     $completeTask->status = 'completed';
                     return $this->successResponse($completeTask, 'All Orders', Response::HTTP_OK);
-                } elseif ($data['status'] == 'rejected') {
+                } elseif ($status == 'rejected') {
                     $rejected = Task::with(['creator', 'engagement'])->where('status', 'rejected')->latest()
                         ->when($search, function($query, $search) {
                             $query->where(function($q) use ($search) {
@@ -1784,8 +1748,8 @@ class TaskController extends Controller
                         })->paginate(10);
                     $rejected->status = 'rejected';
                     return $this->successResponse($rejected, 'All Orders', Response::HTTP_OK);
-                } elseif ($data['status'] == 'ongoing') {
-                    $activeTask = Task::with(['creator', 'engagement'])->whereColumn('quantity', '>', 'performed')->latest()
+                } elseif ($status == 'ongoing') {
+                    $activeTask = Task::with(['creator', 'engagement'])->whereColumn('quantity', '>', 'performed')->where('status','verifyed')->latest()
                         ->when($search, function($query, $search) {
                             $query->where(function($q) use ($search) {
                                 $q->where('description', 'like', "%{$search}%")
@@ -1802,6 +1766,25 @@ class TaskController extends Controller
                             });
                         })->paginate(10);
                     $activeTask->status = 'ongoing';
+                    return $this->successResponse($activeTask, 'All Orders', Response::HTTP_OK);
+                } elseif ($status == 'pending') {
+                    $activeTask = Task::with(['creator', 'engagement'])->where('status','pending')->latest()
+                        ->when($search, function($query, $search) {
+                            $query->where(function($q) use ($search) {
+                                $q->where('description', 'like', "%{$search}%")
+                                    ->orWhere('link', 'like', "%{$search}%");
+
+                                $q->orWhereHas('creator', function($q2) use ($search) {
+                                    $q2->where('name', 'like', "%{$search}%");
+                                    $q2->orWhere('email', 'like', "%{$search}%");
+                                });
+
+                                $q->orWhereHas('engagement', function($q3) use ($search) {
+                                    $q3->where('engagement_name', 'like', "%{$search}%");
+                                });
+                            });
+                        })->paginate(10);
+                    $activeTask->status = 'pending';
                     return $this->successResponse($activeTask, 'All Orders', Response::HTTP_OK);
                 }
 
