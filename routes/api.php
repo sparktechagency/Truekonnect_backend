@@ -73,7 +73,7 @@ Route::middleware('auth:api')->group(function () {
 Route::prefix('app')->group(function () {
     Route::middleware(UserMiddelware::class)->controller(AppController::class)->group(function () {
         Route::controller(TaskController::class)->group(function () {
-            Route::get('taskes','availableTasksForMe');
+            Route::get('taskes','availableTasks');
             Route::get('tasks/details/{id}','singleTaskDetails');
             Route::post('savetask','saveTask');
             Route::post('tasksubmited','submitTask');

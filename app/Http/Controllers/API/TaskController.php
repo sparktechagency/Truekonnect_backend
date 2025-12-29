@@ -682,6 +682,74 @@ class TaskController extends Controller
 
 
     // App For Performer
+    public function availableTasks(Request $request)
+    {
+        try {
+            $perPage = $request->query('per_page',10);
+            $data = $request->validate([
+                'category'=>'nullable|string',
+                'search'=>'nullable|string',
+            ]);
+
+            $search = $data['category'] ?? 'all';
+            $searchValue = $data['search'] ?? null;
+
+            $task = Task::with([
+                'country:id,name,flag',
+                'social:id,name,icon_url',
+                'engagement:id,engagement_name',
+                'creator:id,name,avatar'
+            ])->whereColumn('quantity','>','performed')
+                ->when($search !== 'all', function ($q) use ($search) {
+                    $q->whereHas('social', function ($sq) use ($search) {
+                        $sq->where('name', 'LIKE', "%{$search}%");
+                    });
+                })
+                ->when($searchValue, function ($q) use ($searchValue) {
+                    $q->where(function ($query) use ($searchValue) {
+
+                            $query->whereHas('engagement', function ($eq) use ($searchValue) {
+                                $eq->where('engagement_name', 'LIKE', "%{$searchValue}%");
+                            })
+                            ->orWhereHas('social', function ($cq) use ($searchValue) {
+                                $cq->where('name', 'LIKE', "%{$searchValue}%");
+                            })
+                            ->orWhereHas('creator', function ($cq) use ($searchValue) {
+                                $cq->where('name', 'LIKE', "%{$searchValue}%");
+                            })
+                            ->orWhereHas('country', function ($co) use ($searchValue) {
+                                $co->where('name', 'LIKE', "%{$searchValue}%");
+                            });
+                    });
+                })
+                ->where('country_id',Auth::user()->country_id)->where('status','verifyed')->paginate($perPage, [
+                'id',
+                'sm_id',
+                'country_id',
+                'sms_id',
+                'user_id',
+                'quantity',
+                'description',
+                'link',
+                'per_perform',
+                'status',
+                'performed',
+                'created_at'
+            ]);
+
+            return $this->successResponse([
+                'username' => Auth::user()->name,
+                'tasks' => $task
+            ], 'All tasks fetched successfully.', Response::HTTP_OK);
+
+        }catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return $this->errorResponse('Token expired. Please log in again.', $e->getMessage(), Response::HTTP_UNAUTHORIZED);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return $this->errorResponse('Invalid or missing token.', $e->getMessage(), Response::HTTP_UNAUTHORIZED);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong', $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
     public function availableTasksForMe(Request $request)
     {
         try {
@@ -696,24 +764,14 @@ class TaskController extends Controller
             }
 
             $perPage = $request->query('per_page',10);
-            $search = $request->query('category');
-            $searchValue = $request->query('search');
+            $data = $request->validate([
+                'category'=>'nullable|string',
+                'search'=>'nullable|string',
+            ]);
 
-//            if (strlen(trim($search)) === 0) {
-//                $errors['category'] = 'Category cannot be empty';
-//            }
-//
-//            if (strlen(trim($searchValue)) === 0) {
-//                $errors['search'] = 'Search value cannot be empty';
-//            }
-//
-//            if (!empty($errors)) {
-//                return $this->errorResponse('Validation Error', $errors, Response::HTTP_BAD_REQUEST);
-//            }
+            $search = $data['category'] ?? null;
+            $searchValue = $data['search'] ?? null;
 
-//            dd(TaskPerformer::where('user_id', $user->id)->pluck('task_id'));
-
-//            $task = Task
             $tasksQuery = Task::with([
                 'country:id,name,flag',
                 'social:id,name,icon_url',
@@ -723,17 +781,25 @@ class TaskController extends Controller
                 ->where('status', 'verifyed')
                 ->whereColumn('quantity', '>', 'performed')
                 ->where('country_id', $user->country_id)
-                ->whereDoesntHave('taskperformers', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
+                ->when($search, function ($query) use ($search) {
+                    $query->whereHas('social', function ($q) use ($search) {
+                        $q->whereRaw('LOWER(TRIM(name)) = ?', [
+                            strtolower(trim($search))
+                        ]);
+                    });
                 })
-                ->orderBy('created_at', 'desc');
-//            dd($tasksQuery->get());
 
-            if (!empty($search)) {
-                $tasksQuery->whereHas('social', function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%');
-                });
-            }
+                ->orderByDesc('created_at');
+
+//            dd(
+//                Task::whereHas('social')->get()->pluck('social.name')->unique()
+//            );
+
+//            if (!empty($search)) {
+//                $tasksQuery->whereHas('social', function($q) use ($search) {
+//                    $q->where('name', 'like', '%' . $search . '%');
+//                });
+//            }
 
 //            if (!empty($search)) {
 //                $tasksQuery->where(function ($q) use ($search, $searchValue) {
@@ -756,7 +822,7 @@ class TaskController extends Controller
                         ->orWhere('per_perform', 'like', "%{$searchValue}%");
 
                     $tasksQuery->orWhereHas('social', function ($sq) use ($searchValue) {
-                        $sq->where('name', 'like', "%{$searchValue}%");
+                        $sq->where('name', 'like', "{$searchValue}");
                         })
                         ->orWhereHas('engagement', function ($eq) use ($searchValue) {
                             $eq->where('engagement_name', 'like', "%{$searchValue}%");
@@ -929,7 +995,7 @@ class TaskController extends Controller
             $socialAccount = SocialAccount::where('user_id', $user->id)->where('sm_id',$task->sm_id)->first();
 
             if ($socialAccount->status == 'unverified') {
-                return $this->errorResponse(null,'Your social account is not verified yet. You can not perform this task', Response::HTTP_UNAUTHORIZED);
+                return $this->errorResponse('Your social account is not verified yet. You can not perform this task',null, Response::HTTP_UNAUTHORIZED);
             }
 
             $taskPerformer = TaskPerformer::where('user_id', $user->id)->where('task_id',$task->id)->exists();
