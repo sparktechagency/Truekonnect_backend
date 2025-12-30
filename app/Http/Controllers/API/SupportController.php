@@ -236,17 +236,9 @@ class SupportController extends Controller
     public function allAdminReviewTickets($id)
     {
         try {
-            // Fetch all pending tickets (you can filter by user if needed)
-            $tickets = SupportTicket::
-            with(['ticketcreator:*', 'reviewer:*'])
-                ->where('status', 'admin_review')
-//                ->latest()
-                ->find($id);
+            $tickets = SupportTicket::with(['ticketcreator:*', 'reviewer:*'])->find($id);
 
-            if ($tickets->attachments) {
-                $tickets->attachments = array($tickets->attachments);
-            }
-//
+            $tickets->attachments = array($tickets->attachments);
 
             return $this->successResponse($tickets,'Ticket Reviewed',Response::HTTP_OK);
 

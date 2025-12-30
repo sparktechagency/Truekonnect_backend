@@ -700,6 +700,9 @@ class TaskController extends Controller
                 'engagement:id,engagement_name',
                 'creator:id,name,avatar'
             ])->whereColumn('quantity','>','performed')
+                ->whereDoesntHave('taskperformers', function ($q) {
+                    $q->where('user_id', Auth::id());
+                })
                 ->when($search !== 'All', function ($q) use ($search) {
                     $q->whereHas('social', function ($sq) use ($search) {
                         $sq->where('name', 'LIKE', "%{$search}%");
@@ -722,7 +725,7 @@ class TaskController extends Controller
                             });
                     });
                 })
-                ->where('country_id',Auth::user()->country_id)->where('status','verifyed')->paginate($perPage, [
+                ->where('country_id',Auth::user()->country_id)->where('status','verifyed')->latest()->paginate($perPage, [
                 'id',
                 'sm_id',
                 'country_id',
@@ -1396,7 +1399,7 @@ class TaskController extends Controller
                     ->paginate($perPage);
 
                 $ticketSupport->getCollection()->transform(function ($item) use ($status) {
-                    $item->status = $status;
+//                    $item->status = $status;
                     $item->attachments = array($item->attachments);
                     return $item;
                 });
