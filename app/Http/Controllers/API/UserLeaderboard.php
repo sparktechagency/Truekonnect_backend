@@ -163,8 +163,7 @@ class UserLeaderboard extends Controller
                 /* ---------- ADMIN / OTHER ROLE ---------- */
 
                 $userId = auth()->id();
-
-                $baseQuery = DB::table('users')
+                $rankedQuery = DB::table('users')
                     ->leftJoin('tasks', function ($join) {
                         $join->on('tasks.user_id', '=', 'users.id')
                             ->where('tasks.status', 'completed');
@@ -177,13 +176,17 @@ class UserLeaderboard extends Controller
                         DB::raw('COUNT(tasks.id) as completed_tasks'),
                         DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(tasks.id) DESC) as `rank`')
                     );
-                $currentUser = (clone $baseQuery)
-                    ->where('users.id', $userId)
+                $currentUser = DB::query()
+                    ->fromSub($rankedQuery, 'ranked_users')
+                    ->where('user_id', $userId)
                     ->first();
+
                 if ($currentUser) {
                     $currentUser->name = 'You';
+                    $currentUser->avatar = $currentUser->avatar ?? 'avatars/default_avatar.png';
                 }
-                $leaderboard = (clone $baseQuery)
+                $leaderboard = DB::query()
+                    ->fromSub($rankedQuery, 'ranked_users')
                     ->orderBy('rank')
                     ->paginate(10);
 
@@ -194,6 +197,38 @@ class UserLeaderboard extends Controller
                     $user->avatar = $user->avatar ?? 'avatars/default_avatar.png';
                     return $user;
                 });
+//                $userId = auth()->id();
+//
+//                $baseQuery = DB::table('users')
+//                    ->leftJoin('tasks', function ($join) {
+//                        $join->on('tasks.user_id', '=', 'users.id')
+//                            ->where('tasks.status', 'completed');
+//                    })
+//                    ->groupBy('users.id', 'users.name', 'users.avatar')
+//                    ->select(
+//                        'users.id as user_id',
+//                        'users.name',
+//                        'users.avatar',
+//                        DB::raw('COUNT(tasks.id) as completed_tasks'),
+//                        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(tasks.id) DESC) as `rank`')
+//                    );
+//                $currentUser = (clone $baseQuery)
+//                    ->where('users.id', $userId)
+//                    ->first();
+//                if ($currentUser) {
+//                    $currentUser->name = 'You';
+//                }
+//                $leaderboard = (clone $baseQuery)
+//                    ->orderBy('rank')
+//                    ->paginate(10);
+//
+//                $leaderboard->getCollection()->transform(function ($user) use ($userId) {
+//                    if ($user->user_id == $userId) {
+//                        $user->name = 'You';
+//                    }
+//                    $user->avatar = $user->avatar ?? 'avatars/default_avatar.png';
+//                    return $user;
+//                });
             }
 
             return $this->successResponse([
