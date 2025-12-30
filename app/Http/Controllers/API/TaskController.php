@@ -691,7 +691,7 @@ class TaskController extends Controller
                 'search'=>'nullable|string',
             ]);
 
-            $search = $data['category'] ?? 'all';
+            $search = $data['category'] ?? 'All';
             $searchValue = $data['search'] ?? null;
 
             $task = Task::with([
@@ -700,7 +700,7 @@ class TaskController extends Controller
                 'engagement:id,engagement_name',
                 'creator:id,name,avatar'
             ])->whereColumn('quantity','>','performed')
-                ->when($search !== 'all', function ($q) use ($search) {
+                ->when($search !== 'All', function ($q) use ($search) {
                     $q->whereHas('social', function ($sq) use ($search) {
                         $sq->where('name', 'LIKE', "%{$search}%");
                     });
