@@ -12,17 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            $table->enum('status',['pending','verifyed','rejected','completed','admin_review','blocked'])->default('pending')->change();
+            $table->string('status')->default('pending')->change();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            //
+            $table->string('status')->nullable()->change();
         });
     }
 };

@@ -7,25 +7,17 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-//        Schema::table('task_performers', function (Blueprint $table) {
-//            $table->enum('status', ['pending', 'completed', 'rejected', 'admin_review','blocked'])->default('pending')->change();
-//        });
-
-        DB::statement("ALTER TABLE task_performers MODIFY COLUMN status ENUM('pending', 'completed', 'rejected', 'admin_review','blocked') DEFAULT 'pending'");
+        Schema::table('task_performers', function (Blueprint $table) {
+            $table->string('status')->default('pending')->change();
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('task_performers', function (Blueprint $table) {
-            DB::statement("ALTER TABLE task_performers MODIFY COLUMN status ENUM('pending', 'completed', 'rejected', 'admin_review','blocked') DEFAULT 'pending'");
+            $table->string('status')->default('pending')->change();
         });
     }
 };
