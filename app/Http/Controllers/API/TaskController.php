@@ -1399,7 +1399,7 @@ class TaskController extends Controller
                     ->paginate($perPage);
 
                 $ticketSupport->getCollection()->transform(function ($item) use ($status) {
-//                    $item->status = $status;
+                    $item->status = $status;
                     $item->attachments = array($item->attachments);
                     return $item;
                 });
