@@ -11,7 +11,8 @@ class SocialAccount extends Model
         'profile_image',
         'note',
         'verification_by',
-        'rejection_reason'
+        'rejection_reason',
+        'status',
     ];
     public function social()
     {

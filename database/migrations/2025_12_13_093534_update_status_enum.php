@@ -12,11 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         // Fix invalid statuses first
-        DB::statement("
-            UPDATE social_accounts
-            SET status = 'unverified'
-            WHERE status NOT IN ('unverified','pending','verified','rejected')
-               OR status IS NULL
+            DB::statement("
+            ALTER TABLE social_accounts
+            DROP CONSTRAINT social_accounts_status_check
+        ");
+
+                DB::statement("
+            ALTER TABLE social_accounts
+            ADD CONSTRAINT social_accounts_status_check
+            CHECK (status IN ('pending', 'verified', 'rejected', 'unverified'))
         ");
 
         Schema::table('social_accounts', function (Blueprint $table) {

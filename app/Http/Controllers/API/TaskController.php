@@ -94,13 +94,14 @@ class TaskController extends Controller
 
 
             $totalprice=$sms->unit_price*$request->quantity;
+//            dd($sms->unit_price);
             $performerAmount=$totalprice/2;
-//            $perperfrom=($performerAmount/ $request->quantity) / $country->token_rate;
-            $perperfrom=$performerAmount / $country->token_rate;
-            $totaltoken=$performerAmount*$country->token_rate;
+            $perperfrom=($performerAmount/ $request->quantity) / $country->token_rate;
+//            $perperfrom=$performerAmount/$country->token_rate;
+            $totaltoken=$performerAmount/$country->token_rate;
 
             $social = SocialMedia::find($request->sm_id);
-//            dd($totaltoken,$perperfrom,$totalprice,$performerAmount);
+//            dd($totalprice,$perperfrom,$performerAmount,$totaltoken);
             $user=JWTAuth::user();
 
             $allUser = User::where('id','!=',$user->id)->get();
@@ -119,8 +120,18 @@ class TaskController extends Controller
                 'total_price'       => $totalprice,
             ]);
 
-            DB::commit();
-            return $this->successResponse(['task'=>$task,'engagement'=>$sms,'social'=>$social], 'Task created successfully', Response::HTTP_CREATED);
+//                $payment = Payment::where('user_id',$user->id)
+//                    ->where('task_id',$task->id)
+//                    ->where('status','SUCCESS')
+//                    ->first();
+//
+//                if (!$payment) {
+//                    return $this->errorResponse('Payment not found','Payment not found',Response::HTTP_NOT_FOUND);
+//                }
+
+                DB::commit();
+                return $this->successResponse(['task' => $task, 'engagement' => $sms, 'social' => $social], 'Task created successfully', Response::HTTP_CREATED);
+
 
         } catch (QueryException $e) {
             DB::rollback();
@@ -153,6 +164,7 @@ class TaskController extends Controller
                     'engagement:id,engagement_name',
                     'creator:id,name,avatar'
                 ])
+                    ->where('status','verifyed')
                     ->whereColumn('quantity','>','performed')
 //                    ->where('status', $data['status'] ?? 'pending')
                     ->orderBy('created_at', 'desc')
@@ -1383,7 +1395,7 @@ class TaskController extends Controller
 
             if ($status === 'user') {
 
-                $ticketSupport = SupportTicket::with(['ticketcreator', 'ticketcreator.country'])
+                $ticketSupport = SupportTicket::with(['ticketcreator', 'ticketcreator.country'])->where('status', 'admin_review')
                     ->when($search, function ($q) use ($search) {
                         $q->where(function ($sub) use ($search) {
                             $sub->where('id', $search)
@@ -1733,7 +1745,7 @@ class TaskController extends Controller
                 $task->status = 'rejected';
             }elseif($task->status === 'verifyed'){
                 $task->status = 'ongoing';
-                $task->progress = ($task->performed / $task->quantity) * 100;
+                $task->progress = round(($task->performed / $task->quantity) * 100,2);
             }
 //            if ($task->quantity > $task->performed){
 //                $task->status = 'ongoing';

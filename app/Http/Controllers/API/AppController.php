@@ -143,7 +143,7 @@ class AppController extends Controller
             $user = JWTAuth::parseToken()->authenticate();
 
             $complete = Task::where('user_id', $user->id)->where('status','completed')->count();
-            $ongoing = Task::where('user_id', $user->id)->whereColumn('quantity','>','performed')->count();
+            $ongoing = Task::where('user_id', $user->id)->where('status','verifyed')->whereColumn('quantity','>','performed')->count();
             $recentTask = Task::with('social:id,name,icon_url')->where('user_id', $user->id)->whereColumn('quantity','>','performed')
                 ->get(['id','sm_id','quantity','performed']);
             $payment = Payment::with('user:id,name,email,avatar')

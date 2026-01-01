@@ -200,7 +200,8 @@ class ReviewerDashboardController extends Controller
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            $totalPendingAccounts = User::whereIn('role',['performer','brand'])->where('status','pending')->count();
+//            $totalPendingAccounts = User::whereIn('role',['performer','brand'])->where('status','pending')->count();
+            $totalPendingAccounts = SocialAccount::where('status','pending')->count();
             $totalPendingOrders = TaskPerformer::where('status','pending')->count();
             $totalPendingTask = Task::where('status','pending')->count();
 

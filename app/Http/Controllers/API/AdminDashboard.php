@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboard extends Controller
 {
@@ -17,17 +18,22 @@ class AdminDashboard extends Controller
                 ->where('status','active')
                 ->count();
 
-            $totalRevenue = Payment::where('status','paid')->sum('amount');
+            $totalRevenue = Payment::where('status','SUCCESS')->sum('amount');
 
             // Weekly revenue
             $startWeek = Carbon::now()->startOfWeek();
             $endWeek = Carbon::now()->endOfWeek();
 
-            $weeklyRevenuePerDay = Payment::where('status','paid')
+            $weeklyRevenuePerDay = Payment::where('status', 'SUCCESS')
                 ->whereBetween('created_at', [$startWeek, $endWeek])
-                ->selectRaw('DATE(created_at) as day, SUM(amount) as total')
-                ->groupBy('day')
-                ->pluck('total','day');
+                ->selectRaw("created_at::date as day, SUM(amount) as total")
+                ->groupBy(DB::raw("created_at::date"))
+                ->pluck('total', 'day');
+//            $weeklyRevenuePerDay = Payment::where('status','paid')
+//                ->whereBetween('created_at', [$startWeek, $endWeek])
+//                ->selectRaw('DATE(created_at) as day, SUM(amount) as total')
+//                ->groupBy('day')
+//                ->pluck('total','day');
 
             $weeklyRevenue = [];
             $current = $startWeek->copy();
@@ -43,11 +49,17 @@ class AdminDashboard extends Controller
             $startOfMonth = Carbon::now()->startOfMonth();
             $endOfMonth = Carbon::now()->endOfMonth();
 
-            $dailyRevenue = Payment::where('status', 'paid')
+            $dailyRevenue = Payment::where('status', 'SUCCESS')
                 ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                ->selectRaw('DAY(created_at) as day, SUM(amount) as total')
-                ->groupBy('day')
-                ->pluck('total','day');
+                ->selectRaw('EXTRACT(DAY FROM created_at) as day, SUM(amount) as total')
+                ->groupBy(DB::raw('EXTRACT(DAY FROM created_at)'))
+                ->pluck('total', 'day');
+
+//            $dailyRevenue = Payment::where('status', 'paid')
+//                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+//                ->selectRaw('DAY(created_at) as day, SUM(amount) as total')
+//                ->groupBy('day')
+//                ->pluck('total','day');
 
             $monthlyRevenue = [];
             $current = $startOfMonth->copy();

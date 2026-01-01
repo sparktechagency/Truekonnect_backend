@@ -123,7 +123,7 @@ class UserLeaderboard extends Controller
                 $userId = auth()->id();
 
 
-                $baseQuery = DB::table('users')
+                $baseQuery = DB::table('users')->whereIn('role',['performer','brand'])
                     ->leftJoin('task_performers', function ($join) {
                         $join->on('task_performers.user_id', '=', 'users.id')
                             ->where('task_performers.status', 'completed');
@@ -134,7 +134,7 @@ class UserLeaderboard extends Controller
                         'users.name',
                         'users.avatar',
                         DB::raw('COUNT(task_performers.id) as completed_tasks'),
-                        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(task_performers.id) DESC) as `rank`')
+                        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(task_performers.id) DESC) as rank')
                     );
 
 
@@ -163,7 +163,7 @@ class UserLeaderboard extends Controller
                 /* ---------- ADMIN / OTHER ROLE ---------- */
 
                 $userId = auth()->id();
-                $rankedQuery = DB::table('users')
+                $rankedQuery = DB::table('users')->whereIn('role',['performer','brand'])
                     ->leftJoin('tasks', function ($join) {
                         $join->on('tasks.user_id', '=', 'users.id')
                             ->where('tasks.status', 'completed');
@@ -174,7 +174,7 @@ class UserLeaderboard extends Controller
                         'users.name',
                         'users.avatar',
                         DB::raw('COUNT(tasks.id) as completed_tasks'),
-                        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(tasks.id) DESC) as `rank`')
+                        DB::raw('DENSE_RANK() OVER (ORDER BY COUNT(tasks.id) DESC) as rank')
                     );
                 $currentUser = DB::query()
                     ->fromSub($rankedQuery, 'ranked_users')
