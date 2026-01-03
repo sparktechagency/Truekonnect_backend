@@ -92,7 +92,7 @@ class PaymentController extends Controller
     {
         $request->validate([
 //            'performer_id'    => 'required|exists:users,id',
-            'amount'          => 'required|numeric|min:1',
+            'amount'          => 'required|integer|min:1',
             'network_code'    => 'required|string',
             'customer_number' => 'required|string',
 //            'customer_number' => '0555804252',
@@ -161,7 +161,7 @@ class PaymentController extends Controller
 
             Withdrawal::create([
                 'user_id'         => Auth::id(),
-                'transaction_id'  => $transactionId,
+                'trnx_id'  => $transactionId,
                 'amount'          => $request->amount,
                 'status'          => 'pending',
                 'network_code'    => $request->network_code,
@@ -190,7 +190,7 @@ class PaymentController extends Controller
     {
         try {
             $transactionId = $request->transaction_id;
-            $status = strtolower($request->status ?? 'pending');
+            $status = $request->status ?? 'pending';
             $message = $request->message ?? null;
 
           $payment = Payment::where('transaction_id', $transactionId)
@@ -199,7 +199,7 @@ class PaymentController extends Controller
                     'message' => $message,
                 ]);
 
-            if ($status === 'paid') {
+            if ($status === 'SUCCESS') {
                 $user = User::find($payment->user_id);
 
                 if ($user && $user->referral_id) {
