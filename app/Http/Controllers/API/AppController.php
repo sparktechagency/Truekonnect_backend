@@ -27,7 +27,7 @@ class AppController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'name' => 'nullable|string|max:255',
-                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:20480',
             ]);
 
             if ($validator->fails()) {
@@ -45,14 +45,16 @@ class AppController extends Controller
             }
 
             if ($request->hasFile('avatar')) {
-                $file = $request->file('avatar');
-                $filename = Str::random(20) . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('avatars', $filename, 'public');
+//                $file = $request->file('avatar');
+//                $filename = Str::random(20) . '.' . $file->getClientOriginalExtension();
+//                $path = $file->storeAs('avatars', $filename, 'public');
+//
+//                // delete old avatar if exists and not default
+//                if ($user->avatar && $user->avatar !== 'avatars/default_avatar.png') {
+//                    Storage::disk('public')->delete($user->avatar);
+//                }
 
-                // delete old avatar if exists and not default
-                if ($user->avatar && $user->avatar !== 'avatars/default_avatar.png') {
-                    Storage::disk('public')->delete($user->avatar);
-                }
+                $path = $this->uploadFile($request->file('avatar'), 'avatars/',$user->avatar);
 
                 $user->avatar = $path;
             }
@@ -76,7 +78,7 @@ class AppController extends Controller
         try {
 
             $validator = Validator::make($request->all(), [
-                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:20480',
             ]);
 
             if ($validator->fails()) {
@@ -92,13 +94,15 @@ class AppController extends Controller
 
 
             if ($request->hasFile('avatar')) {
-                $file = $request->file('avatar');
-                $filename = Str::random(20) . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('avatars', $filename, 'public');
+//                $file = $request->file('avatar');
+//                $filename = Str::random(20) . '.' . $file->getClientOriginalExtension();
+//                $path = $file->storeAs('avatars', $filename, 'public');
+//
+//                if ($user->avatar && $user->avatar !== 'avatars/default_avatar.png') {
+//                    Storage::disk('public')->delete($user->avatar);
+//                }
 
-                if ($user->avatar && $user->avatar !== 'avatars/default_avatar.png') {
-                    Storage::disk('public')->delete($user->avatar);
-                }
+                $path = $this->uploadFile($request->file('avatar'), 'avatars/',$user->avatar);
                 $user->avatar = $path;
             }
 
@@ -130,6 +134,7 @@ class AppController extends Controller
     {
         try {
             $user = Auth::user();
+            $this->deleteFile($user->avatar);
             $user->delete();
 
             return $this->successResponse(null, 'Profile deleted successfully.',200);
@@ -317,7 +322,7 @@ class AppController extends Controller
             $validator = Validator::make($request->all(), [
                 'profile_name'  => 'required|string|max:255',
                 'note'          => 'nullable|string|max:500',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:20480',
             ]);
 
             if ($validator->fails()) {
@@ -340,15 +345,17 @@ class AppController extends Controller
 
 
             if ($request->hasFile('profile_image')) {
-                $file = $request->file('profile_image');
-                $extension = $file->getClientOriginalExtension();
-                $fileName = Str::slug($socialAccount->profile_name) . '-' . time() . '.' . $extension;
+//                $file = $request->file('profile_image');
+//                $extension = $file->getClientOriginalExtension();
+//                $fileName = Str::slug($socialAccount->profile_name) . '-' . time() . '.' . $extension;
+//
+//                if ($socialAccount->profile_image && Storage::disk('public')->exists($socialAccount->profile_image)) {
+//                    Storage::disk('public')->delete($socialAccount->profile_image);
+//                }
+//
+//                $filePath = $file->storeAs('social_profiles', $fileName, 'public');
 
-                if ($socialAccount->profile_image && Storage::disk('public')->exists($socialAccount->profile_image)) {
-                    Storage::disk('public')->delete($socialAccount->profile_image);
-                }
-
-                $filePath = $file->storeAs('social_profiles', $fileName, 'public');
+                $filePath = $this->uploadFile($request->file('profile_image'), 'social_profiles/');
                 $socialAccount->profile_image = $filePath;
             }
 
@@ -372,7 +379,7 @@ class AppController extends Controller
         try {
             $social = SocialAccount::find($id);
 
-            $social->profile_name = null;
+        $social->profile_name = null;
         $social->profile_image = null;
         $social->note = null;
         $social->verification_by = null;

@@ -43,7 +43,7 @@ class ContentControll extends Controller
         try {
             $promo = PromoLink::find($id);
 
-            $this->deleteFile($promo->link);
+//            $this->deleteFile($promo->link);
             $promo->delete();
 
             return $this->successResponse(null, 'Link Deleted Successfully', Response::HTTP_OK);

@@ -58,11 +58,12 @@ class AuthController extends Controller
 
             if (in_array($request->role, ['performer', 'brand'])) {
 
+                $phoneumber = '+' . ltrim($request->country_id, '+') . $request->phone;
                 $payload = [
                     'client_id' => env('KORBA_CLIENT_ID'),
-                    'phone_number' => $request->country_id . $request->phone,
+                    'phone_number' => $phoneumber,
                     'code' => $otp,
-                    'platform' => env('APP_NAME') . '. OTP Expire at ' . $otpExpiry,
+                    'platform' => env('APP_NAME'),
                 ];
                 $otpSend = $korba->ussdOTP($payload);
             } else {
@@ -602,21 +603,25 @@ class AuthController extends Controller
                 'name' => 'sometimes|string',
                 'email' => 'sometimes|string|email|unique:users,email',
                 'phone' => 'sometimes|string',
-                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp',
             ]);
 
             $user = Auth::user();
 
             if ($request->hasFile('avatar')) {
-                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-                    Storage::disk('public')->delete($user->avatar);
-                }
-
-                $file = $request->file('avatar');
-                $extension = $file->getClientOriginalExtension();
-                $fileName = Str::slug($request->name ?? $user->avatar) . '.' . $extension;
-                $iconPath = $file->storeAs('avatars', $fileName, 'public');
+//                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+//                    Storage::disk('public')->delete($user->avatar);
+//                }
+//
+//                $file = $request->file('avatar');
+//
+//                $fileName = time() . '.' . $file->getClientOriginalExtension();
+//
+//                $iconPath = $file->storeAs('avatars', $fileName, 'public');
+                $iconPath = $this->uploadFile($request->file('avatar'), 'avatars/',$user->avatar);
                 $data['avatar'] = $iconPath;
+
+//                dd($iconPath);
             }
 
             if (($request->filled('email') || $request->filled('phone'))

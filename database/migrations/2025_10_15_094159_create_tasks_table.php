@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('sm_id')->constrained('social_media')->onDelete('cascade');
-            $table->foreignId('sms_id')->constrained('social_media_services')->onDelete('cascade');
+            $table->foreignId('sms_id')->nullable()->constrained('social_media_services')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('country_id')->constrained('countries')->onDelete('cascade');
             $table->integer('quantity');
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->integer('per_perform')->default(0);
             $table->integer('total_token')->default(0);
             $table->integer('token_distributed')->nullable()->default(0);
-            
+
             $table->decimal('unite_price',10,3);
             $table->decimal('total_price',10,3);
 

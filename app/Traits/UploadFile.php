@@ -4,6 +4,8 @@ namespace App\Traits;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 trait UploadFile
 {
@@ -18,7 +20,19 @@ trait UploadFile
             File::makeDirectory($fullFolderPath, 0755, true);
         }
 
-        $fileName = $file->getClientOriginalName();
+        $manager = new ImageManager(new Driver());
+
+        $img = $manager->read($file);
+
+        $quality = 85;
+        $webp = $img->toWebp(quality: 85);
+        while (strlen((string) $webp) > 100 * 1024 && $quality > 50) {
+            $quality -= 5;
+            $webp = $img->toWebp(quality: $quality);
+        }
+
+        $fileName = time() . '.webp';
+//        $fileName = $file->getClientOriginalName();
 
         $file->move($fullFolderPath, $fileName);
 

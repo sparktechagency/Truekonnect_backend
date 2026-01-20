@@ -89,10 +89,12 @@ class CountryController extends Controller
             // Upload flag
             $flagPath = null;
             if ($request->hasFile('flag')) {
-                $file = $request->file('flag');
-                $extension = $file->getClientOriginalExtension();
-                $fileName = Str::slug($request->name) . '-' . preg_replace('/[^0-9+]/', '', $request->dial_code) . '.' . $extension;
-                $flagPath = $file->storeAs('country_flags', $fileName, 'public');
+//                $file = $request->file('flag');
+//                $extension = $file->getClientOriginalExtension();
+//                $fileName = Str::slug($request->name) . '-' . preg_replace('/[^0-9+]/', '', $request->dial_code) . '.' . $extension;
+//                $flagPath = $file->storeAs('country_flags', $fileName, 'public');
+
+                $flagPath = $this->uploadFile($request->file('flag'), 'country_flags/');
             }
 
             // Create record
@@ -133,7 +135,7 @@ class CountryController extends Controller
             $validator = Validator::make($request->all(), [
                 'name'          => 'sometimes|string|unique:countries,name,' . $id,
                 'dial_code'     => 'sometimes|string|unique:countries,dial_code,' . $id,
-                'flag'          => 'sometimes|image|mimes:png,jpg,jpeg|max:2048',
+                'flag'          => 'sometimes|image|mimes:png,jpg,jpeg,webp|max:2048',
                 'rate'          => 'sometimes|numeric',
                 'currency'      => 'sometimes|string',
             ]);
@@ -143,15 +145,16 @@ class CountryController extends Controller
             }
 
             if ($request->hasFile('flag')) {
-                if ($country->flag && Storage::disk('public')->exists($country->flag)) {
-                    Storage::disk('public')->delete($country->flag);
-                }
-                $file = $request->file('flag');
-                $extension = $file->getClientOriginalExtension();
-                $fileName = Str::slug($request->name ?? $country->name)
-                . '-' . preg_replace('/[^0-9+]/', '', $request->dial_code ?? $country->dial_code)
-                . '.' . $extension;
-                $flagPath = $file->storeAs('country_flags', $fileName, 'public');
+//                if ($country->flag && Storage::disk('public')->exists($country->flag)) {
+//                    Storage::disk('public')->delete($country->flag);
+//                }
+//                $file = $request->file('flag');
+//                $extension = $file->getClientOriginalExtension();
+//                $fileName = Str::slug($request->name ?? $country->name)
+//                . '-' . preg_replace('/[^0-9+]/', '', $request->dial_code ?? $country->dial_code)
+//                . '.' . $extension;
+//                $flagPath = $file->storeAs('country_flags', $fileName, 'public');
+                $flagPath = $this->uploadFile($request->file('flag'), 'country_flags/',$country->flag);
                 $country->flag = $flagPath;
             }
             if ($request->has('name')) {
@@ -180,6 +183,8 @@ class CountryController extends Controller
             if (!$country) {
                 return $this->errorResponse('Country not found.', null,Response::HTTP_NOT_FOUND);
             }
+
+            $this->deleteFile($country->flag);
 
             $country->delete();
 

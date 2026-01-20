@@ -83,6 +83,7 @@ class TaskController extends Controller
                 ->where('user_id',Auth::id())
 //                ->where('status','verified')
                 ->first();
+//            dd($socialAccount);
 //            dd($socialAccount->status);
             if ($socialAccount->status == 'unverified') {
                 return $this->errorResponse('Your social account is not verified yet',null,Response::HTTP_BAD_REQUEST);
@@ -1046,7 +1047,8 @@ class TaskController extends Controller
 
             $uploadedFiles = [];
             foreach ($request->file('task_attached') as $file) {
-                $path = $file->store('task_files', 'public');
+//                $path = $file->store('task_files', 'public');
+                $path = $this->uploadFile($file,'ticket_files/');
                 $uploadedFiles[] = $path;
 
                 TaskFile::create([

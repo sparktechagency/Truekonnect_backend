@@ -30,10 +30,11 @@ class SocialMediaController extends Controller
 
             $iconPath = null;
             if ($request->hasFile('icon')) {
-                $file = $request->file('icon');
-                $extension = $file->getClientOriginalExtension();
-                $fileName = Str::slug($request->name) . '.' . $extension;
-                $iconPath = $file->storeAs('social_icons', $fileName, 'public');
+//                $file = $request->file('icon');
+//                $extension = $file->getClientOriginalExtension();
+//                $fileName = Str::slug($request->name) . '.' . $extension;
+//                $iconPath = $file->storeAs('social_icons', $fileName, 'public');
+                $iconPath = $this->uploadFile($request->file('icon'),'social_icons/');
             }
             $platform = SocialMedia::create([
                 'name' => $request->name,
@@ -87,14 +88,15 @@ class SocialMediaController extends Controller
 
             // If updating icon, delete old one first
             if ($request->hasFile('icon_url')) {
-                if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
-                    Storage::disk('public')->delete($platform->icon_url);
-                }
-
-                $file = $request->file('icon_url');
-                $extension = $file->getClientOriginalExtension();
-                $fileName = Str::slug($request->name ?? $platform->name) . '.' . $extension;
-                $iconPath = $file->storeAs('social_icons', $fileName, 'public');
+//                if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
+//                    Storage::disk('public')->delete($platform->icon_url);
+//                }
+//
+//                $file = $request->file('icon_url');
+//                $extension = $file->getClientOriginalExtension();
+//                $fileName = Str::slug($request->name ?? $platform->name) . '.' . $extension;
+//                $iconPath = $file->storeAs('social_icons', $fileName, 'public');
+                $iconPath = $this->uploadFile($request->file('icon_url'),'social_icons/',$platform->icon_url);
                 $platform->icon_url = $iconPath;
             }
 
@@ -122,9 +124,10 @@ class SocialMediaController extends Controller
                 return $this->errorResponse('Social media not found!',null, Response::HTTP_NOT_FOUND);
             }
 
-            if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
-                Storage::disk('public')->delete($platform->icon_url);
-            }
+            $this->deleteFile($platform->icon_url);
+//            if ($platform->icon_url && Storage::disk('public')->exists($platform->icon_url)) {
+//                Storage::disk('public')->delete($platform->icon_url);
+//            }
 
             $platform->delete();
 
