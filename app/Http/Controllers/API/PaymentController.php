@@ -75,7 +75,8 @@ class PaymentController extends Controller
             $title = 'Payment Initiated.';
             $body = 'We sent a prompt to your phone number ' .$request->customer_number. '. Please accept it. Your transaction id: ' . $transactionId;
 
-            $user->notify(new UserNotification($title, $body));
+            // Payment Done
+            $user->notify(new UserNotification($title, $body,'payment'));
 
             DB::commit();
             return $this->successResponse([
@@ -173,7 +174,8 @@ class PaymentController extends Controller
             $title = 'Payment Initiated.';
             $body = 'Your payment request is in review. You will notify after sometime. Your transaction id: ' . $transactionId;
 
-            Auth::user()->notify(new UserNotification($title, $body));
+            //Payment
+            Auth::user()->notify(new UserNotification($title, $body,'payment'));
             DB::commit();
             return $this->successResponse([
                 'response'=>$response,
@@ -213,9 +215,10 @@ class PaymentController extends Controller
                             $bonus = $payment->amount * 0.10;
                             $referrer->increment('ref_income', $bonus);
 
+                            //Payment
                             $title = 'Referral Bonus Received';
                             $body = 'You received 10% bonus from ' . $user->name . "'s first deposit: " . $bonus;
-                            $referrer->notify(new UserNotification($title, $body));
+                            $referrer->notify(new UserNotification($title, $body,'payment'));
                         }
                     }
                 }
@@ -239,10 +242,11 @@ class PaymentController extends Controller
                         $bonus = $withdrawal->amount * 0.05;
                         $referrer->increment('ref_income', $bonus);
 
+                        //Payment
 
                         $title = 'Referral Bonus Received';
                         $body = 'You received 5% bonus from ' . $user->name . "'s first withdrawal: " . $bonus;
-                        $referrer->notify(new UserNotification($title, $body));
+                        $referrer->notify(new UserNotification($title, $body,'payment'));
                     }
                 }
             }

@@ -18,10 +18,12 @@ class UserNotification extends Notification
      */
     public $title;
     public $body;
-    public function __construct($title, $body)
+    public $type;
+    public function __construct($title, $body,$type)
     {
         $this->title = $title;
         $this->body = $body;
+        $this->type = $type;
     }
 
     /**
@@ -42,6 +44,7 @@ class UserNotification extends Notification
         return [
             'title' => $this->title,
             'body' => $this->body,
+            'type' => $this->type,
             'sender_id' => Auth::id(),
             'avatar' => optional(User::find(Auth::id()))->avatar
         ];

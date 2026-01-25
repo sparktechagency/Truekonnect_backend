@@ -355,7 +355,8 @@ class TaskController extends Controller
                 $title = 'Your task has been approved.';
                 $body = 'Your task, '.$task->engagement->engagement_name. ', has been approved.';
 
-                $task->creator->notify(new UserNotification($title, $body));
+                //Task
+                $task->creator->notify(new UserNotification($title, $body,'task'));
 
                 DB::commit();
 
@@ -410,7 +411,8 @@ class TaskController extends Controller
                 $title = 'Your task has been rejected.';
                 $body = 'Your task, '.$task->engagement->engagement_name. ', has been rejected.';
 
-                $task->creator->notify(new UserNotification($title, $body));
+                //Task
+                $task->creator->notify(new UserNotification($title, $body,'task'));
 
                 return $this->successResponse($task, 'Task rejected successfully.', Response::HTTP_OK);
             }
@@ -467,7 +469,8 @@ class TaskController extends Controller
                 $title = 'Your task is in admin review.';
                 $body = 'Your task, '.$task->engagement->engagement_name. ', is in admin review.';
 
-                $task->creator->notify(new UserNotification($title, $body));
+                //Task
+                $task->creator->notify(new UserNotification($title, $body,'task'));
 
                 DB::commit();
                 return $this->successResponse($task, 'Task assign for admin review successfully.', Response::HTTP_OK);
@@ -556,7 +559,8 @@ class TaskController extends Controller
                 $title = 'Your task is completed.';
                 $body = $performer->name. ', your task is completed. You earned '.$task->token_earned.' tokens.';
 
-                $performer->notify(new UserNotification($title, $body));
+                //Task
+                $performer->notify(new UserNotification($title, $body,'task'));
                 DB::commit();
                 return $this->successResponse($task, 'Task approved successfully.', Response::HTTP_OK);
             }
@@ -609,7 +613,8 @@ class TaskController extends Controller
                     $title = 'Your task is rejected';
                     $body = "Hello {$performer->name}, your task has been rejected. Reason: {$task->rejection_reason}";
 
-                    $performer->notify(new UserNotification($title, $body));
+                    //Task
+                    $performer->notify(new UserNotification($title, $body,'task'));
                 }
                 DB::commit();
                 return $this->successResponse($performer, 'Task rejected successfully.', Response::HTTP_OK);
@@ -667,7 +672,8 @@ class TaskController extends Controller
                     $title = 'Your task is under admin review';
                     $body = "Hello {$performer->name}, your task has been assigned for admin review. Reason: {$task->rejection_reason}";
 
-                    $performer->notify(new UserNotification($title, $body));
+                    //Task
+                    $performer->notify(new UserNotification($title, $body,'task'));
                 }
                 DB::commit();
                 return $this->successResponse($performer, 'Task moved to admin', Response::HTTP_OK);
@@ -1073,7 +1079,8 @@ class TaskController extends Controller
                 $title = 'New Task Submission';
                 $body  = "{$user->name} has submitted the task '{$task->engagement->engagement_name}' for your review.";
 
-                $creator->notify(new UserNotification($title, $body));
+                //Task
+                $creator->notify(new UserNotification($title, $body,'task'));
             }
             DB::commit();
             return $this->successResponse([
@@ -1448,7 +1455,8 @@ class TaskController extends Controller
                 $title = 'Task Approved';
                 $body = 'Hello '.$task->creator->name.'!. Your task, ' .$task->engagement->engagement_name.' has been approved.';
 
-                $task->creator->notify(new UserNotification($title, $body));
+                //Task
+                $task->creator->notify(new UserNotification($title, $body,'task'));
 
                 DB::commit();
 
@@ -1509,7 +1517,8 @@ class TaskController extends Controller
                 $title = 'Task Rejected';
                 $body = 'Hello '.$task->creator->name.'!. Your task, ' .$task->engagement->engagement_name.' has been rejected. Reason: '.$task->rejection_reason;
 
-                $task->creator->notify(new UserNotification($title, $body));
+                //Task
+                $task->creator->notify(new UserNotification($title, $body,'task'));
 
                 DB::commit();
 
@@ -1622,7 +1631,8 @@ class TaskController extends Controller
                 $title = 'Task Approved';
                 $body = 'Congratulations! Your performed task, '.$task->engagement->engagement_name.' has been approved. You earned '.$task->token_earned.' token.';
 
-                $performer->notify(new UserNotification($title, $body));
+                //Task
+                $performer->notify(new UserNotification($title, $body,'task'));
 
                 DB::commit();
                 return $this->successResponse($performer, 'Task approved successfully.', Response::HTTP_OK);
@@ -1679,7 +1689,8 @@ class TaskController extends Controller
                 $title = 'Task Rejected';
                 $body = 'Sorry! Your performed task, '.$task->engagement->engagement_name.' has been rejected.';
 
-                $performer->notify(new UserNotification($title, $body));
+                //Task
+                $performer->notify(new UserNotification($title, $body,'task'));
 
                 DB::commit();
                 return $this->successResponse($task, 'Task rejected successfully.', Response::HTTP_OK);

@@ -54,8 +54,9 @@ class SupportController extends Controller
             $title = 'New Ticket Raised';
             $body  = "A new support ticket has been raised by {$user->name}.\nTicket Id: {$ticket->id}\nSubject: {$ticket->subject}\nIssue: {$ticket->issue}";
 
+            //Ticket
            foreach ($allUser as $notifyUser) {
-               $notifyUser->notify(new UserNotification($title, $body));
+               $notifyUser->notify(new UserNotification($title, $body,'ticket'));
            }
            DB::commit();
             return $this->successResponse($ticket,'Ticket Raised',Response::HTTP_OK);
@@ -164,7 +165,8 @@ class SupportController extends Controller
                 $title = 'Your Support Ticket Has Been Answered';
                 $body  = "Hello {$customer->name}, your support ticket '{$ticket->subject}' has been answered. Reply: {$reply}";
 
-                $customer->notify(new UserNotification($title, $body));
+                //Ticket
+                $customer->notify(new UserNotification($title, $body,'ticket'));
                 DB::commit();
                 return $this->successResponse($ticket,'Ticket Answered',Response::HTTP_OK);
 //            }
@@ -213,7 +215,9 @@ class SupportController extends Controller
                 $title = 'Ticket Moved to Admin';
                 $body = 'Your support ticket has been moved to admin review. ';
 
-                $ticket->ticketcreator->notify(new UserNotification($title, $body));
+
+                // Ticket
+                $ticket->ticketcreator->notify(new UserNotification($title, $body,'ticket'));
 
                 DB::commit();
                 return $this->successResponse($ticket,'Ticket Moved to Admin',Response::HTTP_OK);
@@ -296,7 +300,8 @@ class SupportController extends Controller
                 $title = 'Ticket Answered';
                 $body = 'Your support ticket has been answered. Reply: '. $reply;
 
-                $customer->notify(new UserNotification($title, $body));
+                //Ticket
+                $customer->notify(new UserNotification($title, $body,'ticket'));
 
                 DB::commit();
                 return $this->successResponse($ticket,'Ticket Answered',Response::HTTP_OK);

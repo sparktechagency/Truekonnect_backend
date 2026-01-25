@@ -102,7 +102,8 @@ class WithdrawalController extends Controller
             $title = 'Token has been converted!';
             $body = 'Your new balance is '. $info->balance;
 
-            $info->notify(new UserNotification($title, $body));
+            //Token
+            $info->notify(new UserNotification($title, $body,'token'));
 
             DB::commit();
 

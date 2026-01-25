@@ -138,7 +138,8 @@ class UserManagementController extends Controller
 
 
 
-            $user->notify(new UserNotification($title, $body));
+            //status
+            $user->notify(new UserNotification($title, $body,'status'));
 
             return $this->successResponse([$user], 'User status updated successfully', Response::HTTP_OK);
         }
@@ -167,7 +168,8 @@ class UserManagementController extends Controller
             $title = 'You have been earned!';
             $body = 'You earned '.$user->earn_token.' token';
 
-            $user->notify(new UserNotification($title, $body));
+            //Token
+            $user->notify(new UserNotification($title, $body,'token'));
 
 
     //        $data = $request->validate([

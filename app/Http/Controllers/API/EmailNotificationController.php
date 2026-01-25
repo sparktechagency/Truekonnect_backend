@@ -60,10 +60,12 @@ class EmailNotificationController extends Controller
 
             $users = User::all();
 
+            // bulk Notification
             foreach ($users as $userss) {
                 $userss->notify(new UserNotification(
                     $data['message'],
                     $data['message'],
+                    'bulk_notification'
                 ));
             }
 
