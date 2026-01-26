@@ -103,7 +103,7 @@ class WithdrawalController extends Controller
             $body = 'Your new balance is '. $info->balance;
 
             //Token
-            $info->notify(new UserNotification($title, $body,'token'));
+            $info->notify(new UserNotification($title, $body,'token',[$info]));
 
             DB::commit();
 

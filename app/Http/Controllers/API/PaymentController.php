@@ -61,7 +61,7 @@ class PaymentController extends Controller
             $response = $korba->collect($payload);
 
 
-            Payment::create([
+          $payment =  Payment::create([
                 'user_id'         => Auth::id(),
                 'task_id'         => $request->task_id,
                 'transaction_id'  => $transactionId,
@@ -76,7 +76,7 @@ class PaymentController extends Controller
             $body = 'We sent a prompt to your phone number ' .$request->customer_number. '. Please accept it. Your transaction id: ' . $transactionId;
 
             // Payment Done
-            $user->notify(new UserNotification($title, $body,'payment'));
+            $user->notify(new UserNotification($title, $body,'payment',[$payment]));
 
             DB::commit();
             return $this->successResponse([
@@ -160,7 +160,7 @@ class PaymentController extends Controller
 
             $response = $korba->disburse($payload);
 
-            Withdrawal::create([
+          $withdrawl =  Withdrawal::create([
                 'user_id'         => Auth::id(),
                 'trnx_id'  => $transactionId,
                 'amount'          => $request->amount,
@@ -175,7 +175,7 @@ class PaymentController extends Controller
             $body = 'Your payment request is in review. You will notify after sometime. Your transaction id: ' . $transactionId;
 
             //Payment
-            Auth::user()->notify(new UserNotification($title, $body,'payment'));
+            Auth::user()->notify(new UserNotification($title, $body,'payment',[$withdrawl]));
             DB::commit();
             return $this->successResponse([
                 'response'=>$response,
@@ -218,7 +218,7 @@ class PaymentController extends Controller
                             //Payment
                             $title = 'Referral Bonus Received';
                             $body = 'You received 10% bonus from ' . $user->name . "'s first deposit: " . $bonus;
-                            $referrer->notify(new UserNotification($title, $body,'payment'));
+                            $referrer->notify(new UserNotification($title, $body,'payment',[$referrer]));
                         }
                     }
                 }
@@ -246,7 +246,7 @@ class PaymentController extends Controller
 
                         $title = 'Referral Bonus Received';
                         $body = 'You received 5% bonus from ' . $user->name . "'s first withdrawal: " . $bonus;
-                        $referrer->notify(new UserNotification($title, $body,'payment'));
+                        $referrer->notify(new UserNotification($title, $body,'payment',[$bonus]));
                     }
                 }
             }

@@ -27,6 +27,8 @@ class NotificationCenter extends Controller
                     'id' => $n->id,
                     'title' => $n->data['title'] ?? null,
                     'body' => $n->data['body'] ?? null,
+                    'type' => $n->data['type'] ?? null,
+                    'metadata' => $n->data['metadata'] ?? null,
                     'avatar' => isset($n->data['sender_id'])
                         ? optional(User::find($n->data['sender_id']))->avatar
                         : null,
@@ -64,6 +66,8 @@ class NotificationCenter extends Controller
                 'id' => $notification->id,
                 'title' => $notification->data['title'] ?? null,
                 'body' => $notification->data['body'] ?? null,
+                'type'=>$notification->data['type'] ?? null,
+                'metadata' => $notification->data['metadata'] ?? null,
                 'read_at' => $notification->read_at ? $notification->read_at->format('M d, Y h:i:s A') : null,
                 'created_at' => $notification->created_at->format('M d, Y h:i:s A'),
             ];
@@ -86,11 +90,15 @@ class NotificationCenter extends Controller
             $user = JWTAuth::parseToken()->authenticate();
             $user->unreadNotifications->markAsRead();
 
+//            dd($user->notifications->first()->data);
             $formattedNotifications = $user->notifications->map(function($n) {
                 return [
                     'id' => $n->id,
                     'title' => $n->data['title'] ?? null,
                     'body' => $n->data['body'] ?? null,
+                    'type' => $n->data['type'] ?? null,
+
+                    'metadata' => $n->data['metadata'] ?? null,
                     'read_at' => $n->read_at ? $n->read_at->format('M d, Y h:i:s A') : null,
                     'created_at' => $n->created_at->format('M d, Y h:i:s A'),
                 ];

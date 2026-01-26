@@ -117,7 +117,7 @@ class ReviewerDashboardController extends Controller
             $body = 'Hi ' . $sa->User->name . ', your account is verified. You can withdrawal now';
 
             //Verification
-            $user->notify(new UserNotification($title, $body,'verification'));
+            $user->notify(new UserNotification($title, $body,'verification',[$sa]));
 
             DB::commit();
 
@@ -178,7 +178,7 @@ class ReviewerDashboardController extends Controller
             $body = 'Hi ' . $sa->User->name . ', your account is rejected. Reason: '. $sa->rejection_reason;
 
             //Verification
-            $user->notify(new UserNotification($title, $body,'verification'));
+            $user->notify(new UserNotification($title, $body,'verification',[$sa]));
 
             DB::commit();
 

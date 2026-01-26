@@ -19,11 +19,15 @@ class UserNotification extends Notification
     public $title;
     public $body;
     public $type;
-    public function __construct($title, $body,$type)
+//    public $value;
+    public $metadata;
+    public function __construct($title, $body,$type,$metadata)
     {
         $this->title = $title;
         $this->body = $body;
         $this->type = $type;
+//        $this->value = $value;
+        $this->metadata = $metadata;
     }
 
     /**
@@ -45,6 +49,8 @@ class UserNotification extends Notification
             'title' => $this->title,
             'body' => $this->body,
             'type' => $this->type,
+//            'value' => $this->value,
+            'metadata' => $this->metadata,
             'sender_id' => Auth::id(),
             'avatar' => optional(User::find(Auth::id()))->avatar
         ];

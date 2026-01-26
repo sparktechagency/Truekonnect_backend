@@ -56,7 +56,7 @@ class SupportController extends Controller
 
             //Ticket
            foreach ($allUser as $notifyUser) {
-               $notifyUser->notify(new UserNotification($title, $body,'ticket'));
+               $notifyUser->notify(new UserNotification($title, $body,'ticket',[$ticket]));
            }
            DB::commit();
             return $this->successResponse($ticket,'Ticket Raised',Response::HTTP_OK);
@@ -166,7 +166,7 @@ class SupportController extends Controller
                 $body  = "Hello {$customer->name}, your support ticket '{$ticket->subject}' has been answered. Reply: {$reply}";
 
                 //Ticket
-                $customer->notify(new UserNotification($title, $body,'ticket'));
+                $customer->notify(new UserNotification($title, $body,'ticket',[$ticket]));
                 DB::commit();
                 return $this->successResponse($ticket,'Ticket Answered',Response::HTTP_OK);
 //            }
@@ -217,7 +217,7 @@ class SupportController extends Controller
 
 
                 // Ticket
-                $ticket->ticketcreator->notify(new UserNotification($title, $body,'ticket'));
+                $ticket->ticketcreator->notify(new UserNotification($title, $body,'ticket',[$ticket]));
 
                 DB::commit();
                 return $this->successResponse($ticket,'Ticket Moved to Admin',Response::HTTP_OK);
@@ -301,7 +301,7 @@ class SupportController extends Controller
                 $body = 'Your support ticket has been answered. Reply: '. $reply;
 
                 //Ticket
-                $customer->notify(new UserNotification($title, $body,'ticket'));
+                $customer->notify(new UserNotification($title, $body,'ticket',[$ticket]));
 
                 DB::commit();
                 return $this->successResponse($ticket,'Ticket Answered',Response::HTTP_OK);

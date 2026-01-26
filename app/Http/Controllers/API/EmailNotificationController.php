@@ -65,7 +65,7 @@ class EmailNotificationController extends Controller
                 $userss->notify(new UserNotification(
                     $data['message'],
                     $data['message'],
-                    'bulk_notification'
+                    'bulk_notification', [$email]
                 ));
             }
 
