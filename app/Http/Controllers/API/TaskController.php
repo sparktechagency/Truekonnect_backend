@@ -1004,7 +1004,7 @@ class TaskController extends Controller
             $validator = Validator::make($request->all(), [
                 'task_id'        => 'required|integer|exists:tasks,id',
                 'task_attached'  => 'required|array|min:1|max:5',
-                'task_attached.*'=> 'file|mimetypes:image/jpeg,image/jpg,image/png,image/webp|max:20480',
+                'task_attached.*'=> 'file|mimetypes:image/jpeg,image/jpg,image/png,image/webp',
             ]);
 
             if ($validator->fails()) {
